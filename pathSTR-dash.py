@@ -30,7 +30,7 @@ def main():
         lambda x: x["length"] / names_to_motif_length[x["gene"]], axis=1
     )
     df["Group"] = "1000 Genomes"
-    df.to_csv("pathSTR-dash.tsv", index=False, sep="\t")
+    # df.to_csv("pathSTR-dash.tsv", index=False, sep="\t")
 
     # Create Dash app
     app = Dash(__name__)
