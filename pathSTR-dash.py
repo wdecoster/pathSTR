@@ -122,35 +122,62 @@ def main():
                         label="About",
                         children=[
                             html.H1("About"),
-                            html.P(
+                            html.Div(
                                 [
-                                    "This web app was developed by Wouter De Coster. "
-                                    "The STR genotypes have been obtained using ",
-                                    html.A(
-                                        "STRdust",
-                                        href="https://github.com/wdecoster/STRdust",
-                                        target="_blank",
+                                    html.P(
+                                        [
+                                            "This web app was developed by Wouter De Coster. "
+                                            "The STR genotypes have been obtained using ",
+                                            html.A(
+                                                "STRdust",
+                                                href="https://github.com/wdecoster/STRdust",
+                                                target="_blank",
+                                            ),
+                                            " from samples of the 1000 Genomes project, sequenced on ONT. "
+                                            "In the length plot, each dot represents a repeat length in total repeat motifs, including those in the reference genome. "
+                                            "You can upload your own STRdust VCF file(s) to show alongside the 1000 Genomes data for comparison. "
+                                            "The source code is available on ",
+                                            html.A(
+                                                "GitHub",
+                                                href="https://github.com/wdecoster/pathSTR-1000G",
+                                                target="_blank",
+                                            ),
+                                            ". If this resource is useful to you, please cite our ",
+                                            html.A(
+                                                "publication",
+                                                href="https://github.com/wdecoster/pathSTR-1000G",
+                                                target="_blank",
+                                            ),
+                                            ", as well as the references to the underlying datasets: ",
+                                            html.A(
+                                                "Noyvert et al. 2023",
+                                                href="https://www.medrxiv.org/content/10.1101/2023.12.20.23300308v1",
+                                                target="_blank",
+                                            ),
+                                            " and ",
+                                            html.A(
+                                                "Gustafson et al. 2024",
+                                                href="https://github.com/wdecoster/STRdust",
+                                                target="_blank",
+                                            ),
+                                            ". Feedback is welcome in the form of an ",
+                                            html.A(
+                                                "issue on GitHub",
+                                                href="https://github.com/wdecoster/pathSTR-1000G/issues",
+                                                target="_blank",
+                                            ),
+                                            ". The repeat coordinates and motifs used in this app are obtained from ",
+                                            html.A(
+                                                "STRchive",
+                                                href="https://strhive.com/",
+                                                target="_blank",
+                                            ),
+                                            ". Other dependencies are Python and the Dash and cyvcf2 modules for the web app, and snakemake to orchestrate the variant calling.",
+                                        ],
+                                        style={"textAlign": "justify"},
                                     ),
-                                    " from samples of the 1000 Genomes project, sequenced on ONT. "
-                                    "In the length plot, each dot represents a repeat length in total repeat motifs, including those in the reference genome."
-                                    "You can upload your own STRdust VCF file(s) to show alongside the 1000 Genomes data for comparison. "
-                                    "The source code is available on "
-                                    "If this resource is useful to you, please cite our publication:"
-                                    "as well as the references to the datasets: ",
-                                    html.A(
-                                        "Noyvert et al. 2023",
-                                        href="https://www.medrxiv.org/content/10.1101/2023.12.20.23300308v1",
-                                        target="_blank",
-                                    ),
-                                    html.A(
-                                        "Gustafson et al. 2024",
-                                        href="https://github.com/wdecoster/STRdust",
-                                        target="_blank",
-                                    ),
-                                    " Feedback is welcome in the form of an issue on github. "
-                                    "The repeat coordinates and motifs used in this app are obtained from STRchive. "
-                                    "Other dependencies are Python and the Dash and cyvcf2 modules for the web app, and snakemake to orchestrate the variant calling.",
-                                ]
+                                ],
+                                style={"width": "80%", "margin": "auto"},
                             ),
                         ],
                     ),
