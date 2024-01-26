@@ -145,17 +145,14 @@ def main():
                                 [
                                     html.P(
                                         [
-                                            "This web app was developed by Wouter De Coster. "
-                                            "The STR genotypes have been obtained using ",
+                                            "This web app was developed by Wouter De Coster. The STR genotypes have been obtained using ",
                                             html.A(
                                                 "STRdust",
                                                 href="https://github.com/wdecoster/STRdust",
                                                 target="_blank",
                                             ),
-                                            " from samples of the 1000 Genomes project, sequenced on ONT. "
-                                            "In the length plot, each dot represents a repeat length in total repeat motifs, including those in the reference genome. "
-                                            "You can upload your own STRdust VCF file(s) to show alongside the 1000 Genomes data for comparison. "
-                                            "The source code is available on ",
+                                            " from samples of the 1000 Genomes project, sequenced on the Oxford Nanopore Technologies PromethION. In the length plot, each dot represents a repeat length in total repeat motifs, including those in the reference genome. "
+                                            "You can upload your own STRdust VCF file(s) to show alongside the 1000 Genomes data for comparison. The source code is available on ",
                                             html.A(
                                                 "GitHub",
                                                 href="https://github.com/wdecoster/pathSTR-1000G",
@@ -310,7 +307,7 @@ def create_strip_plot(strip_df, log=False):
     )
     if log:
         fig.update_layout(yaxis_type="log")
-        fig.update_layout(xaxis_title="", yaxis_title="log-Repeat length [units]")
+        fig.update_layout(xaxis_title="", yaxis_title="Repeat length [log(units)]")
     else:
         fig.update_layout(xaxis_title="", yaxis_title="Repeat length [units]")
     fig.update_traces(marker=dict(size=2))
