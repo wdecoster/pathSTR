@@ -45,10 +45,23 @@ def main():
             dcc.Tabs(
                 [
                     dcc.Tab(
+                        label="Overview",
+                        children=[
+                            html.H1("Overview"),
+                            dcc.Loading(
+                                id="loading-strip",
+                                type="circle",
+                                children=[
+                                    html.Div(dcc.Graph(id="strip-plot")),
+                                    html.Div(dcc.Graph(id="strip-plot-log")),
+                                ],
+                            ),
+                        ],
+                    ),
+                    dcc.Tab(
                         label="Repeat length",
                         children=[
                             html.H1("Repeat length"),
-                            dcc.Store(id="stored-df"),
                             html.Div(
                                 dcc.Dropdown(
                                     id="dropdown-gene",
@@ -57,6 +70,20 @@ def main():
                                 )
                             ),
                             html.Div(dcc.Graph(id="violin-plot")),
+                        ],
+                    ),
+                    dcc.Tab(
+                        label="Repeat Composition",
+                        children=[
+                            html.H1("Repeat Composition"),
+                            # Add your code for the repeat composition tab here
+                            # ...
+                        ],
+                    ),
+                    dcc.Tab(
+                        label="Your data",
+                        children=[
+                            dcc.Store(id="stored-df"),
                             dcc.Upload(
                                 id="upload-data",
                                 children=html.Div(
@@ -78,14 +105,6 @@ def main():
                                 },
                                 multiple=True,
                             ),
-                        ],
-                    ),
-                    dcc.Tab(
-                        label="Repeat Composition",
-                        children=[
-                            html.H1("Repeat Composition"),
-                            # Add your code for the second tab here
-                            # ...
                         ],
                     ),
                     dcc.Tab(
@@ -225,6 +244,20 @@ def main():
         return create_violin_plot(filtered_df)
 
     @app.callback(
+        [Output("strip-plot", "figure"), Output("strip-plot-log", "figure")],
+        Input("stored-df", "data"),
+    )
+    def update_stripplot(stored_df):
+        if stored_df is None:
+            strip_df = df.sort_values("gene")
+        else:
+            stored_df = pd.DataFrame(stored_df)
+            strip_df = pd.concat([df, stored_df], ignore_index=True).sort_values("gene")
+        strip = create_strip_plot(strip_df)
+        strip_log = create_strip_plot(strip_df, log=True)
+        return strip, strip_log
+
+    @app.callback(
         Output("download-zip-link", "href"),
         [Input("download-zip-button", "n_clicks")],
     )
@@ -260,6 +293,28 @@ def create_violin_plot(filtered_df):
     fig.update_traces(marker=dict(size=3))
     fig.update_layout(xaxis_title="", yaxis_title="Repeat length [units]")
     if filtered_df["Group"].nunique() > 1:
+        fig.update_layout(legend_title_text="Group")
+    else:
+        fig.update_layout(showlegend=False)
+    return fig
+
+
+def create_strip_plot(strip_df, log=False):
+    fig = px.strip(
+        strip_df,
+        x="gene",
+        y="length",
+        color="Group",
+        stripmode="overlay",
+        hover_data=["sample"],
+    )
+    if log:
+        fig.update_layout(yaxis_type="log")
+        fig.update_layout(xaxis_title="", yaxis_title="log-Repeat length [units]")
+    else:
+        fig.update_layout(xaxis_title="", yaxis_title="Repeat length [units]")
+    fig.update_traces(marker=dict(size=2))
+    if strip_df["Group"].nunique() > 1:
         fig.update_layout(legend_title_text="Group")
     else:
         fig.update_layout(showlegend=False)
