@@ -7,7 +7,7 @@ import gzip
 import pandas as pd
 import plotly.express as px
 import dash
-from dash import Dash, html, dcc, ctx
+from dash import Dash, html, dcc, dash_table
 from dash.dependencies import Input, Output, State
 from cyvcf2 import VCF
 from argparse import ArgumentParser
@@ -17,20 +17,79 @@ import zipfile
 from flask import send_file
 
 
+class Repeats(object):
+    def __init__(self, bed):
+        self.df = self.get_repeat_info(bed)
+
+    def get_repeat_info(self, bed):
+        """
+        This function parses a bed file as obtained from STRchive, which is intended for TRGT,
+        but also works for STRdust.
+        """
+        bed = pd.read_csv(
+            bed, sep="\t", header=None, names=["chrom", "start", "end", "info"]
+        )
+        # the TRGT bed file has as ID the <disease>_<gene> and we only care about the gene
+        bed["name"] = bed["info"].apply(
+            lambda x: [i.split("_")[1] for i in x.split(";") if i.startswith("ID=")][
+                0
+            ].replace("ID=", "")
+        )
+        # in case there are duplicates in the name column, use the original ID from the info field
+        dups = bed.duplicated(subset="name", keep=False)
+        bed.loc[dups, "name"] = bed.loc[dups, "info"].apply(
+            lambda x: [
+                Repeats.fix_name(i) for i in x.split(";") if i.startswith("ID=")
+            ][0].replace("ID=", "")
+        )
+        bed["motifs"] = bed["info"].apply(
+            lambda x: [
+                i.replace("MOTIF=", "").split(",")
+                for i in x.split(";")
+                if i.startswith("MOTIFS=")
+            ][0]
+        )
+        bed["motif_length"] = bed["motifs"].apply(lambda x: len(x[0]))
+        bed["id"] = (
+            bed["chrom"] + ":" + bed["start"].astype(str) + "-" + bed["end"].astype(str)
+        )
+        return bed.drop(columns=["info", "chrom", "start", "end"]).set_index("id")
+
+    @staticmethod
+    def fix_name(name):
+        return f"{name.split('_')[1]}_{name.split('_')[0]}"
+
+    def motif_length(self, gene):
+        return self.df.loc[self.df["name"] == gene, "motif_length"].values[0]
+
+    def gene(self, id):
+        return self.df.loc[id, "name"]
+
+
 def main():
     args = get_args()
-    # read in the BED file with the STRs
-    coords_to_names, names_to_motif_length = get_repeat_info(args.bed)
-    # read in the VCFs
-    lengths = [get_lengths_from_vcf(vcf, coords_to_names) for vcf in args.vcf]
-    # make a dataframe
-    df = pd.DataFrame(flatten(lengths), columns=["gene", "sample", "length"])
-    # for every repeat in the dataframe, divide the length by the motif length
-    df["length"] = df.apply(
-        lambda x: x["length"] / names_to_motif_length[x["gene"]], axis=1
-    )
-    df["Group"] = "1000 Genomes"
-    # df.to_csv("pathSTR-dash.tsv", index=False, sep="\t")
+    if args.vcf and args.bed:
+        # read in the BED file with the STRs
+        repeats = Repeats(args.bed)
+        # read in the VCFs
+        lengths = [get_lengths_from_vcf(vcf, repeats) for vcf in args.vcf]
+        # make a dataframe
+        df = pd.DataFrame(
+            flatten(lengths), columns=["gene", "sample", "length", "ref_diff"]
+        )
+        # for every repeat in the dataframe, divide the length by the motif length
+        df["length"] = df.apply(
+            lambda x: x["length"] / repeats.motif_length(x["gene"]), axis=1
+        )
+        df["ref_diff"] = df.apply(
+            lambda x: x["ref_diff"] / repeats.motif_length(x["gene"]), axis=1
+        )
+        df["Group"] = "1000 Genomes"
+        df.to_feather("pathSTR-1000G.feather")
+    elif args.arrow:
+        df = pd.read_feather(args.arrow)
+    else:
+        raise ValueError("Please provide either --vcf and --bed or --arrow")
 
     # Create Dash app
     app = Dash(__name__)
@@ -41,20 +100,47 @@ def main():
     ]
     app.layout = html.Div(
         [
-            html.H1("Pathogenic Repeats from 1000 Genomes Project ONT resequencing"),
+            html.Div(
+                [
+                    html.H1(
+                        "Pathogenic Repeats from 1000 Genomes Project nanopore resequencing"
+                    ),
+                ],
+                style={
+                    "backgroundColor": "#f9f9f9",  # Change as needed
+                    "border": "1px solid #ddd",  # Change as needed
+                    "textAlign": "center",  # Center the text
+                },
+            ),
             dcc.Tabs(
                 [
                     dcc.Tab(
                         label="Overview",
                         children=[
-                            html.H1("Overview"),
+                            html.H1("Overview", style={"bottommargin": "0px"}),
+                            dcc.Store(id="strip-plot-store"),
+                            dcc.Store(id="strip-plot-log-store"),
                             dcc.Loading(
-                                id="loading-strip",
-                                type="circle",
+                                id="loading-strip-1",
+                                type="cube",
                                 children=[
-                                    html.Div(dcc.Graph(id="strip-plot")),
-                                    html.Div(dcc.Graph(id="strip-plot-log")),
+                                    html.Div(
+                                        dcc.Graph(id="strip-plot"),
+                                        style={"margin": "0px"},
+                                    )
                                 ],
+                                style={"margin": "0px", "height": "20vh"},
+                            ),
+                            dcc.Loading(
+                                id="loading-strip-2",
+                                type="cube",
+                                children=[
+                                    html.Div(
+                                        dcc.Graph(id="strip-plot-log"),
+                                        style={"margin": "0px"},
+                                    ),
+                                ],
+                                style={"margin": "0px", "height": "20vh"},
                             ),
                         ],
                     ),
@@ -70,6 +156,7 @@ def main():
                                 )
                             ),
                             html.Div(dcc.Graph(id="violin-plot")),
+                            html.Div(dcc.Graph(id="violin-plot-log")),
                         ],
                     ),
                     dcc.Tab(
@@ -105,6 +192,7 @@ def main():
                                 },
                                 multiple=True,
                             ),
+                            dash_table.DataTable(id="user-data-table"),
                         ],
                     ),
                     dcc.Tab(
@@ -217,9 +305,7 @@ def main():
     def store_uploaded_data(list_of_contents, list_of_filenames, list_of_dates):
         if list_of_contents is not None:
             dfs = [
-                get_lengths_from_uploaded_vcf(
-                    content, filename, coords_to_names, names_to_motif_length
-                )
+                get_lengths_from_uploaded_vcf(content, filename, repeats)
                 for (content, filename, _) in zip(
                     list_of_contents, list_of_filenames, list_of_dates
                 )
@@ -228,7 +314,7 @@ def main():
             return uploaded_df.to_dict("records")
 
     @app.callback(
-        Output("violin-plot", "figure"),
+        [Output("violin-plot", "figure"), Output("violin-plot-log", "figure")],
         [Input("dropdown-gene", "value"), Input("stored-df", "data")],
     )
     def update_violin(selected_gene, stored_df):
@@ -238,10 +324,10 @@ def main():
             stored_df = pd.DataFrame(stored_df)
             combined_df = pd.concat([df, stored_df], ignore_index=True)
             filtered_df = combined_df[combined_df["gene"] == selected_gene]
-        return create_violin_plot(filtered_df)
+        return violin_plot(filtered_df), violin_plot(filtered_df, log=True)
 
     @app.callback(
-        [Output("strip-plot", "figure"), Output("strip-plot-log", "figure")],
+        [Output("strip-plot-store", "data"), Output("strip-plot-log-store", "data")],
         Input("stored-df", "data"),
     )
     def update_stripplot(stored_df):
@@ -253,6 +339,13 @@ def main():
         strip = create_strip_plot(strip_df)
         strip_log = create_strip_plot(strip_df, log=True)
         return strip, strip_log
+
+    @app.callback(
+        [Output("strip-plot", "figure"), Output("strip-plot-log", "figure")],
+        [Input("strip-plot-store", "data"), Input("strip-plot-log-store", "data")],
+    )
+    def update_strip_plot_from_store(strip_data, strip_log_data):
+        return strip_data, strip_log_data
 
     @app.callback(
         Output("download-zip-link", "href"),
@@ -274,11 +367,27 @@ def main():
             attachment_filename="pathSTR-1000G-vcfs.zip",
         )
 
+    @app.callback(
+        Output("user-data-table", "data"),
+        Output("user-data-table", "columns"),
+        Input("stored-df", "data"),
+    )
+    def update_table(data):
+        if data is None:
+            return (
+                dash.no_update,
+                dash.no_update,
+            )  # Don't update the table if no data is uploaded
+
+        user_df = pd.DataFrame(data)
+        columns = [{"name": i, "id": i} for i in user_df.columns]
+        return user_df.to_dict("records"), columns
+
     # Run the app
     app.run_server(debug=True)
 
 
-def create_violin_plot(filtered_df):
+def violin_plot(filtered_df, log=False):
     fig = px.violin(
         filtered_df,
         x="gene",
@@ -287,8 +396,16 @@ def create_violin_plot(filtered_df):
         points="all",
         hover_data=["sample"],
     )
+    if log:
+        fig.update_layout(
+            yaxis_type="log",
+            xaxis_title="",
+            yaxis_title="Repeat length [log(units)]",
+        )
+        # fig.update_layout(xaxis_range=[1, filtered_df["length"].max()])
+    else:
+        fig.update_layout(xaxis_title="", yaxis_title="Repeat length [units]")
     fig.update_traces(marker=dict(size=3))
-    fig.update_layout(xaxis_title="", yaxis_title="Repeat length [units]")
     if filtered_df["Group"].nunique() > 1:
         fig.update_layout(legend_title_text="Group")
     else:
@@ -318,81 +435,46 @@ def create_strip_plot(strip_df, log=False):
     return fig
 
 
-def get_repeat_info(bed):
-    """
-    This function parses a bed file as obtained from STRchive, which is intended for TRGT
-    """
-    coords_to_gene = {}
-    gene_to_motif_length = {}
-    bed = pd.read_csv(bed, sep="\t", header=None)
-    bed.columns = ["chrom", "start", "end", "info"]
-    bed["name"] = bed["info"].apply(
-        lambda x: [i.split("_")[1] for i in x.split(";") if i.startswith("ID=")][
-            0
-        ].replace("ID=", "")
-    )
-    bed["motif"] = bed["info"].apply(
-        lambda x: [i.split(",")[0] for i in x.split(";") if i.startswith("MOTIFS=")][
-            0
-        ].replace("MOTIF=", "")
-    )
-    # in case there are duplicates in the name column, use the original ID from the info field
-    dups = bed.duplicated(subset="name", keep=False)
-    bed.loc[dups, "name"] = bed.loc[dups, "info"].apply(
-        lambda x: [change_repeat_name(i) for i in x.split(";") if i.startswith("ID=")][
-            0
-        ].replace("ID=", "")
-    )
-    for chrom, start, end, name, motif in bed[
-        ["chrom", "start", "end", "name", "motif"]
-    ].values:
-        coords_to_gene[(chrom, str(start), str(end))] = name
-        gene_to_motif_length[name] = len(motif)
-    return coords_to_gene, gene_to_motif_length
-
-
-def change_repeat_name(name):
-    return f"{name.split('_')[1]}_{name.split('_')[0]}"
-
-
 def flatten(it):
     return chain.from_iterable(it)
 
 
-def get_lengths_from_vcf(vcf, coords_to_names):
+def get_lengths_from_vcf(vcf, repeats):
     calls = []
     name = os.path.basename(vcf).replace(".vcf.gz", "")
     for v in VCF(vcf):
-        gene = coords_to_names[(v.CHROM, str(v.POS), str(v.end))]
-        lengths = v.INFO.get("FRB")
-        calls.append((gene, name, lengths[0]))
-        calls.append((gene, name, lengths[1]))
+        gene = repeats.gene(f"{v.CHROM}:{str(v.POS)}-{str(v.end)}")
+        full_lengths = v.INFO.get("FRB")
+        ref_diff = v.INFO.get("RB")
+        calls.append((gene, name, full_lengths[0], ref_diff[0]))
+        calls.append((gene, name, full_lengths[1], ref_diff[1]))
     return calls
 
 
-def get_lengths_from_uploaded_vcf(
-    contents, filename, coords_to_names, names_to_motif_length
-):
+def get_lengths_from_uploaded_vcf(contents, filename, repeats):
     content_type, content_string = contents.split(",")
     decoded = base64.b64decode(content_string)
     # write the decoded file to a temporary file
-    # make sure the file ends with .gz
+    # make sure the file ends with .gz and is gzipped
     # and read it back in using cyvcf2
-    # now perhaps this could be done more efficiently, but it works
     if filename.endswith(".gz"):
-        base = os.path.basename(filename)
-        tempfile = os.path.join("/tmp", base)
+        tempfile = os.path.join("/tmp", os.path.basename(filename))
         with open(tempfile, "wb") as f:
             f.write(decoded)
     else:
-        base = os.path.basename(filename) + ".gz"
-        tempfile = os.path.join("/tmp", base)
+        tempfile = os.path.join("/tmp", os.path.basename(filename) + ".gz")
         with gzip.open(tempfile, "wb") as f:
             f.write(decoded)
-    calls = get_lengths_from_vcf(tempfile, coords_to_names)
+    try:
+        calls = get_lengths_from_vcf(tempfile, repeats)
+    except OSError:
+        # this happens when the file is not a VCF, or malformed
+        os.remove(tempfile)
+        return None
     df = pd.DataFrame(calls, columns=["gene", "sample", "length"])
     df["length"] = df.apply(
-        lambda x: x["length"] / names_to_motif_length[x["gene"]], axis=1
+        lambda x: x["length"] / repeats.motif_length(x["gene"]),
+        axis=1,
     )
     df["Group"] = "Uploaded"
     os.remove(tempfile)
@@ -406,6 +488,7 @@ def get_args():
         nargs="+",
         help="Input VCFs",
     )
+    parser.add_argument("--arrow", help="Input is in one Arrow file")
     parser.add_argument("--bed", help="STRchive BED file with STRs")
     return parser.parse_args()
 
