@@ -1,3 +1,6 @@
 pathSTR-1000G.feather
 pathSTR-1000G-vcfs.zip
 .vscode/sftp.json
+src/__pycache__/plot.cpython-310.pyc
+src/__pycache__/repeats.cpython-310.pyc
+src/__pycache__/parse_input.cpython-310.pyc

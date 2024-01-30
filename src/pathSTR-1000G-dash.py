@@ -1,6 +1,6 @@
 # This script is used to serve a Dash app with the information from STR calls of the 1000 Genomes project,
 # focusing on the pathogenic STRs as genotyped by STRdust.
-# The Dash app has one panel focusing on the STR lengths, and one panel focusing on the STR sequence composition.
+
 
 import base64
 import gzip
@@ -9,87 +9,20 @@ import plotly.express as px
 import dash
 from dash import Dash, html, dcc, dash_table
 from dash.dependencies import Input, Output, State
-from cyvcf2 import VCF
 from argparse import ArgumentParser
 import os
-from itertools import chain
 import zipfile
 from flask import send_file
-
-
-class Repeats(object):
-    def __init__(self, bed):
-        self.df = self.get_repeat_info(bed)
-
-    def get_repeat_info(self, bed):
-        """
-        This function parses a bed file as obtained from STRchive, which is intended for TRGT,
-        but also works for STRdust.
-        """
-        bed = pd.read_csv(
-            bed, sep="\t", header=None, names=["chrom", "start", "end", "info"]
-        )
-        # the TRGT bed file has as ID the <disease>_<gene> and we only care about the gene
-        bed["name"] = bed["info"].apply(
-            lambda x: [i.split("_")[1] for i in x.split(";") if i.startswith("ID=")][
-                0
-            ].replace("ID=", "")
-        )
-        # in case there are duplicates in the name column, use the original ID from the info field
-        dups = bed.duplicated(subset="name", keep=False)
-        bed.loc[dups, "name"] = bed.loc[dups, "info"].apply(
-            lambda x: [
-                Repeats.fix_name(i) for i in x.split(";") if i.startswith("ID=")
-            ][0].replace("ID=", "")
-        )
-        bed["motifs"] = bed["info"].apply(
-            lambda x: [
-                i.replace("MOTIF=", "").split(",")
-                for i in x.split(";")
-                if i.startswith("MOTIFS=")
-            ][0]
-        )
-        bed["motif_length"] = bed["motifs"].apply(lambda x: len(x[0]))
-        bed["id"] = (
-            bed["chrom"] + ":" + bed["start"].astype(str) + "-" + bed["end"].astype(str)
-        )
-        return bed.drop(columns=["info", "chrom", "start", "end"]).set_index("id")
-
-    @staticmethod
-    def fix_name(name):
-        return f"{name.split('_')[1]}_{name.split('_')[0]}"
-
-    def motif_length(self, gene):
-        return self.df.loc[self.df["name"] == gene, "motif_length"].values[0]
-
-    def gene(self, id):
-        return self.df.loc[id, "name"]
+import parse_input as parse
+from repeats import Repeats
+import plot
 
 
 def main():
     args = get_args()
-    if args.vcf and args.bed:
-        # read in the BED file with the STRs
-        repeats = Repeats(args.bed)
-        # read in the VCFs
-        lengths = [get_lengths_from_vcf(vcf, repeats) for vcf in args.vcf]
-        # make a dataframe
-        df = pd.DataFrame(
-            flatten(lengths), columns=["gene", "sample", "length", "ref_diff"]
-        )
-        # for every repeat in the dataframe, divide the length by the motif length
-        df["length"] = df.apply(
-            lambda x: x["length"] / repeats.motif_length(x["gene"]), axis=1
-        )
-        df["ref_diff"] = df.apply(
-            lambda x: x["ref_diff"] / repeats.motif_length(x["gene"]), axis=1
-        )
-        df["Group"] = "1000 Genomes"
-        df.to_feather("pathSTR-1000G.feather")
-    elif args.arrow:
-        df = pd.read_feather(args.arrow)
-    else:
-        raise ValueError("Please provide either --vcf and --bed or --arrow")
+    # read in the BED file with the STRs
+    repeats = Repeats(args.bed)
+    df = parse.parse_input(args.vcf, args.sample_info, args.feather, repeats)
 
     # Create Dash app
     app = Dash(__name__)
@@ -149,11 +82,25 @@ def main():
                         children=[
                             html.H1("Repeat length"),
                             html.Div(
-                                dcc.Dropdown(
-                                    id="dropdown-gene",
-                                    options=gene_options,
-                                    value=gene_options[0]["value"],
-                                )
+                                children=[
+                                    dcc.Dropdown(
+                                        id="dropdown-gene",
+                                        options=gene_options,
+                                        value=gene_options[0]["value"],
+                                    ),
+                                    dcc.Checklist(
+                                        id="split-violin-by",
+                                        options=[
+                                            {
+                                                "label": "Split by population",
+                                                "value": "population",
+                                            },
+                                            {"label": "Split by sex", "value": "sex"},
+                                        ],
+                                        value=[],
+                                        inline=True,
+                                    ),
+                                ]
                             ),
                             html.Div(dcc.Graph(id="violin-plot")),
                             html.Div(dcc.Graph(id="violin-plot-log")),
@@ -176,7 +123,7 @@ def main():
                                 children=html.Div(
                                     [
                                         "Drag and drop or ",
-                                        html.A("click to upload STRdust VCF files"),
+                                        html.A("click to upload STRdust VCF.gz files"),
                                         " to show your data in the plots",
                                     ]
                                 ),
@@ -191,6 +138,7 @@ def main():
                                     "margin": "10px",
                                 },
                                 multiple=True,
+                                max_size=100000,
                             ),
                             dash_table.DataTable(id="user-data-table"),
                         ],
@@ -240,7 +188,7 @@ def main():
                                                 target="_blank",
                                             ),
                                             " from samples of the 1000 Genomes project, sequenced on the Oxford Nanopore Technologies PromethION. In the length plot, each dot represents a repeat length in total repeat motifs, including those in the reference genome. "
-                                            "You can upload your own STRdust VCF file(s) to show alongside the 1000 Genomes data for comparison. The source code is available on ",
+                                            "You can upload your own STRdust VCF.gz file(s) to show alongside the 1000 Genomes data for comparison, but this is currently limited to 100kb files, please let me know if more would be required. The source code is available on ",
                                             html.A(
                                                 "GitHub",
                                                 href="https://github.com/wdecoster/pathSTR-1000G",
@@ -264,7 +212,7 @@ def main():
                                                 href="https://github.com/wdecoster/STRdust",
                                                 target="_blank",
                                             ),
-                                            ". Feedback is welcome in the form of an ",
+                                            ". Please let me know if you know a suitable dataset to add. Feedback is welcome in the form of an ",
                                             html.A(
                                                 "issue on GitHub",
                                                 href="https://github.com/wdecoster/pathSTR-1000G/issues",
@@ -305,26 +253,49 @@ def main():
     def store_uploaded_data(list_of_contents, list_of_filenames, list_of_dates):
         if list_of_contents is not None:
             dfs = [
-                get_lengths_from_uploaded_vcf(content, filename, repeats)
+                parse.get_lengths_from_uploaded_vcf(content, filename, repeats)
                 for (content, filename, _) in zip(
                     list_of_contents, list_of_filenames, list_of_dates
                 )
             ]
+            for df, filename in zip(dfs, list_of_filenames):
+                if df is None:
+                    print(
+                        f"Error parsing {filename}, please make sure it is a valid STRdust VCF.gz file"
+                    )
+                    # Create a dummy dataframe to communicate error
+                    return (
+                        pd.DataFrame(("Error processing", filename))
+                        .transpose()
+                        .to_dict("records")
+                    )
             uploaded_df = pd.concat(dfs, ignore_index=True)
             return uploaded_df.to_dict("records")
 
     @app.callback(
         [Output("violin-plot", "figure"), Output("violin-plot-log", "figure")],
-        [Input("dropdown-gene", "value"), Input("stored-df", "data")],
+        [
+            Input("dropdown-gene", "value"),
+            Input("stored-df", "data"),
+            Input("split-violin-by", "value"),
+        ],
     )
-    def update_violin(selected_gene, stored_df):
+    def update_violin(selected_gene, stored_df, split_violin):
         if stored_df is None:
             filtered_df = df[df["gene"] == selected_gene]
         else:
             stored_df = pd.DataFrame(stored_df)
             combined_df = pd.concat([df, stored_df], ignore_index=True)
             filtered_df = combined_df[combined_df["gene"] == selected_gene]
-        return violin_plot(filtered_df), violin_plot(filtered_df, log=True)
+        return plot.violin_plot(
+            filtered_df,
+            log=False,
+            split_by=split_violin,
+        ), plot.violin_plot(
+            filtered_df,
+            log=True,
+            split_by=split_violin,
+        )
 
     @app.callback(
         [Output("strip-plot-store", "data"), Output("strip-plot-log-store", "data")],
@@ -336,8 +307,8 @@ def main():
         else:
             stored_df = pd.DataFrame(stored_df)
             strip_df = pd.concat([df, stored_df], ignore_index=True).sort_values("gene")
-        strip = create_strip_plot(strip_df)
-        strip_log = create_strip_plot(strip_df, log=True)
+        strip = plot.create_strip_plot(strip_df)
+        strip_log = plot.create_strip_plot(strip_df, log=True)
         return strip, strip_log
 
     @app.callback(
@@ -387,100 +358,6 @@ def main():
     app.run_server(debug=True)
 
 
-def violin_plot(filtered_df, log=False):
-    fig = px.violin(
-        filtered_df,
-        x="gene",
-        y="length",
-        color="Group",
-        points="all",
-        hover_data=["sample"],
-    )
-    if log:
-        fig.update_layout(
-            yaxis_type="log",
-            xaxis_title="",
-            yaxis_title="Repeat length [log(units)]",
-        )
-        # fig.update_layout(xaxis_range=[1, filtered_df["length"].max()])
-    else:
-        fig.update_layout(xaxis_title="", yaxis_title="Repeat length [units]")
-    fig.update_traces(marker=dict(size=3))
-    if filtered_df["Group"].nunique() > 1:
-        fig.update_layout(legend_title_text="Group")
-    else:
-        fig.update_layout(showlegend=False)
-    return fig
-
-
-def create_strip_plot(strip_df, log=False):
-    fig = px.strip(
-        strip_df,
-        x="gene",
-        y="length",
-        color="Group",
-        stripmode="overlay",
-        hover_data=["sample"],
-    )
-    if log:
-        fig.update_layout(yaxis_type="log")
-        fig.update_layout(xaxis_title="", yaxis_title="Repeat length [log(units)]")
-    else:
-        fig.update_layout(xaxis_title="", yaxis_title="Repeat length [units]")
-    fig.update_traces(marker=dict(size=2))
-    if strip_df["Group"].nunique() > 1:
-        fig.update_layout(legend_title_text="Group")
-    else:
-        fig.update_layout(showlegend=False)
-    return fig
-
-
-def flatten(it):
-    return chain.from_iterable(it)
-
-
-def get_lengths_from_vcf(vcf, repeats):
-    calls = []
-    name = os.path.basename(vcf).replace(".vcf.gz", "")
-    for v in VCF(vcf):
-        gene = repeats.gene(f"{v.CHROM}:{str(v.POS)}-{str(v.end)}")
-        full_lengths = v.INFO.get("FRB")
-        ref_diff = v.INFO.get("RB")
-        calls.append((gene, name, full_lengths[0], ref_diff[0]))
-        calls.append((gene, name, full_lengths[1], ref_diff[1]))
-    return calls
-
-
-def get_lengths_from_uploaded_vcf(contents, filename, repeats):
-    content_type, content_string = contents.split(",")
-    decoded = base64.b64decode(content_string)
-    # write the decoded file to a temporary file
-    # make sure the file ends with .gz and is gzipped
-    # and read it back in using cyvcf2
-    if filename.endswith(".gz"):
-        tempfile = os.path.join("/tmp", os.path.basename(filename))
-        with open(tempfile, "wb") as f:
-            f.write(decoded)
-    else:
-        tempfile = os.path.join("/tmp", os.path.basename(filename) + ".gz")
-        with gzip.open(tempfile, "wb") as f:
-            f.write(decoded)
-    try:
-        calls = get_lengths_from_vcf(tempfile, repeats)
-    except OSError:
-        # this happens when the file is not a VCF, or malformed
-        os.remove(tempfile)
-        return None
-    df = pd.DataFrame(calls, columns=["gene", "sample", "length"])
-    df["length"] = df.apply(
-        lambda x: x["length"] / repeats.motif_length(x["gene"]),
-        axis=1,
-    )
-    df["Group"] = "Uploaded"
-    os.remove(tempfile)
-    return df
-
-
 def get_args():
     parser = ArgumentParser(description="Get STRs from VCF")
     parser.add_argument(
@@ -488,8 +365,9 @@ def get_args():
         nargs="+",
         help="Input VCFs",
     )
-    parser.add_argument("--arrow", help="Input is in one Arrow file")
     parser.add_argument("--bed", help="STRchive BED file with STRs")
+    parser.add_argument("--sample_info", help="Sample info file")
+    parser.add_argument("--feather", help="Input is in one feather file")
     return parser.parse_args()
 
 
