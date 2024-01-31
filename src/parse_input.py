@@ -4,6 +4,7 @@ import os
 from cyvcf2 import VCF
 import gzip
 import base64
+import sys
 
 
 def parse_input(vcf_list, sample_info, feather, repeats):
@@ -14,7 +15,7 @@ def parse_input(vcf_list, sample_info, feather, repeats):
         df = (
             pd.DataFrame(
                 flatten(lengths),
-                columns=["gene", "sample", "length", "ref_diff", "sequence"],
+                columns=["chrom", "gene", "sample", "length", "ref_diff", "sequence"],
             )
             .set_index("sample", drop=False)
             .join(
@@ -34,14 +35,18 @@ def parse_input(vcf_list, sample_info, feather, repeats):
         df["ref_diff"] = df.apply(
             lambda x: x["ref_diff"] / repeats.motif_length(x["gene"]), axis=1
         )
-
+        # Remove duplicate hits for males on chrX
+        df = df[~((df["chrom"] == "chrX") & (df["Sex"] == "male") & df.duplicated())]
         # Write to feather file for easier import later
         df.to_feather("pathSTR-1000G.feather")
 
     elif feather:
         df = pd.read_feather(feather)
     else:
-        raise ValueError("Please provide either --vcf and --sample_info or --feather")
+        raise ValueError(
+            "Please provide --bed and either --vcf and --sample_info or --feather."
+        )
+    sys.stderr.write("Finished parsing input.\n")
     return df
 
 
@@ -53,8 +58,8 @@ def get_lengths_from_vcf(vcf, repeats):
         full_lengths = v.INFO.get("FRB")
         ref_diff = v.INFO.get("RB")
         sequences = parse_alts(v.ALT, v.genotypes[0])
-        calls.append((gene, name, full_lengths[0], ref_diff[0], sequences[0]))
-        calls.append((gene, name, full_lengths[1], ref_diff[1], sequences[1]))
+        calls.append((v.CHROM, gene, name, full_lengths[0], ref_diff[0], sequences[0]))
+        calls.append((v.CHROM, gene, name, full_lengths[1], ref_diff[1], sequences[1]))
     return calls
 
 
@@ -97,7 +102,7 @@ def get_lengths_from_uploaded_vcf(contents, filename, repeats):
         os.remove(tempfile)
         return None
     df = pd.DataFrame(
-        calls, columns=["gene", "sample", "length", "ref_diff", "sequence"]
+        calls, columns=["chrom", "gene", "sample", "length", "ref_diff", "sequence"]
     )
     df["length"] = df.apply(
         lambda x: x["length"] / repeats.motif_length(x["gene"]),
