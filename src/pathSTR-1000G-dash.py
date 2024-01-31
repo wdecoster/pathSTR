@@ -2,15 +2,11 @@
 # focusing on the pathogenic STRs as genotyped by STRdust.
 
 
-import base64
-import gzip
 import pandas as pd
-import plotly.express as px
 import dash
 from dash import Dash, html, dcc, dash_table
 from dash.dependencies import Input, Output, State
 from argparse import ArgumentParser
-import os
 import zipfile
 from flask import send_file
 import parse_input as parse
@@ -40,9 +36,9 @@ def main():
                     ),
                 ],
                 style={
-                    "backgroundColor": "#f9f9f9",  # Change as needed
-                    "border": "1px solid #ddd",  # Change as needed
-                    "textAlign": "center",  # Center the text
+                    "backgroundColor": "#f9f9f9",
+                    "border": "1px solid #ddd",
+                    "textAlign": "center",
                 },
             ),
             dcc.Tabs(
@@ -89,13 +85,17 @@ def main():
                                         value=gene_options[0]["value"],
                                     ),
                                     dcc.Checklist(
-                                        id="split-violin-by",
+                                        id="violin_options",
                                         options=[
                                             {
                                                 "label": "Split by population",
                                                 "value": "population",
                                             },
                                             {"label": "Split by sex", "value": "sex"},
+                                            {
+                                                "label": "Show repeat length relative to reference genome",
+                                                "value": "ref_diff",
+                                            },
                                         ],
                                         value=[],
                                         inline=True,
@@ -277,10 +277,10 @@ def main():
         [
             Input("dropdown-gene", "value"),
             Input("stored-df", "data"),
-            Input("split-violin-by", "value"),
+            Input("violin_options", "value"),
         ],
     )
-    def update_violin(selected_gene, stored_df, split_violin):
+    def update_violin(selected_gene, stored_df, violin_options):
         if stored_df is None:
             filtered_df = df[df["gene"] == selected_gene]
         else:
@@ -290,11 +290,11 @@ def main():
         return plot.violin_plot(
             filtered_df,
             log=False,
-            split_by=split_violin,
+            violin_options=violin_options,
         ), plot.violin_plot(
             filtered_df,
             log=True,
-            split_by=split_violin,
+            violin_options=violin_options,
         )
 
     @app.callback(

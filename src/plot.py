@@ -1,12 +1,12 @@
 import plotly.express as px
 
 
-def violin_plot(filtered_df, log=False, split_by=None):
+def violin_plot(filtered_df, log=False, violin_options=None):
     fig = px.violin(
         filtered_df,
-        x="Superpopulation" if "population" in split_by else "gene",
-        y="length",
-        color="Sex" if "sex" in split_by else "Group",
+        x="Superpopulation" if "population" in violin_options else "gene",
+        y="ref_diff" if "reff_diff" in violin_options else "length",
+        color="Sex" if "sex" in violin_options else "Group",
         points="all",
         hover_data=["sample"],
     )
@@ -20,9 +20,9 @@ def violin_plot(filtered_df, log=False, split_by=None):
     else:
         fig.update_layout(xaxis_title="", yaxis_title="Repeat length [units]")
     fig.update_traces(marker=dict(size=3))
-    if filtered_df["Group"].nunique() > 1 and "sex" not in split_by:
+    if filtered_df["Group"].nunique() > 1 and "sex" not in violin_options:
         fig.update_layout(legend_title_text="Group")
-    elif "sex" in split_by:
+    elif "sex" in violin_options:
         fig.update_layout(legend_title_text="Sex")
     else:
         fig.update_layout(showlegend=False)
