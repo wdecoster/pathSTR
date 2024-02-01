@@ -140,6 +140,7 @@ def main():
                                 multiple=True,
                                 max_size=100000,
                             ),
+                            html.Div(id="upload-status"),
                             dash_table.DataTable(id="user-data-table"),
                         ],
                     ),
@@ -245,7 +246,7 @@ def main():
         return dcc.send_data_frame(df.to_csv, "pathSTR-1000G.tsv")
 
     @app.callback(
-        Output("stored-df", "data"),
+        [Output("stored-df", "data"), Output("upload-status", "children")],
         Input("upload-data", "contents"),
         State("upload-data", "filename"),
         State("upload-data", "last_modified"),
@@ -265,12 +266,12 @@ def main():
                     )
                     # Create a dummy dataframe to communicate error
                     return (
-                        pd.DataFrame(("Error processing", filename))
-                        .transpose()
-                        .to_dict("records")
-                    )
+                        pd.DataFrame(()).to_dict("records")
+                    ), f"Error processing file {filename}"
             uploaded_df = pd.concat(dfs, ignore_index=True)
-            return uploaded_df.to_dict("records")
+            return uploaded_df.to_dict("records"), f"Uploaded {len(dfs)} files"
+        else:
+            return dash.no_update, dash.no_update
 
     @app.callback(
         [Output("violin-plot", "figure"), Output("violin-plot-log", "figure")],
