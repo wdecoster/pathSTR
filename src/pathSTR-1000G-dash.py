@@ -18,8 +18,10 @@ def main():
     args = get_args()
     # read in the BED file with the STRs
     repeats = Repeats(args.bed)
+    # parse the VCF and sample info file, or use the feather if provided
     df = parse.parse_input(args.vcf, args.sample_info, args.feather, repeats)
-
+    # Calculate mean and standard deviation per repeat for the comparison with uploaded data
+    stat = parse.stats(df)
     # Create Dash app
     app = Dash(__name__)
 

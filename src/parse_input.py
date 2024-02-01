@@ -114,3 +114,8 @@ def get_lengths_from_uploaded_vcf(contents, filename, repeats):
     df["Group"] = "Uploaded"
     os.remove(tempfile)
     return df
+
+
+def stats(df):
+    """Calculate summary statistics mean and standard deviation for the data"""
+    return df.groupby("gene")["length"].agg(["mean", "std"])
