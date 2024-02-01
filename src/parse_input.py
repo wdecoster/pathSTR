@@ -55,6 +55,9 @@ def get_lengths_from_vcf(vcf, repeats):
     name = os.path.basename(vcf).replace(".vcf.gz", "")
     for v in VCF(vcf):
         gene = repeats.gene(f"{v.CHROM}:{str(v.POS)}-{str(v.end)}")
+        if gene is None:
+            print(f"Skipping {v.CHROM}:{str(v.POS)}-{str(v.end)} - not in bed file.")
+            continue
         full_lengths = v.INFO.get("FRB")
         ref_diff = v.INFO.get("RB")
         sequences = parse_alts(v.ALT, v.genotypes[0])

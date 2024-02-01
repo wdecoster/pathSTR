@@ -47,4 +47,7 @@ class Repeats(object):
         return self.df.loc[self.df["name"] == gene, "motif_length"].values[0]
 
     def gene(self, id):
-        return self.df.loc[id, "name"]
+        try:
+            return self.df.loc[id, "name"]
+        except KeyError:
+            return None
