@@ -15,7 +15,15 @@ def parse_input(vcf_list, sample_info, feather, repeats):
         df = (
             pd.DataFrame(
                 flatten(lengths),
-                columns=["chrom", "gene", "sample", "length", "ref_diff", "sequence"],
+                columns=[
+                    "chrom",
+                    "gene",
+                    "sample",
+                    "allele",
+                    "length",
+                    "ref_diff",
+                    "sequence",
+                ],
             )
             .set_index("sample", drop=False)
             .join(
@@ -61,8 +69,12 @@ def get_lengths_from_vcf(vcf, repeats):
         full_lengths = v.INFO.get("FRB")
         ref_diff = v.INFO.get("RB")
         sequences = parse_alts(v.ALT, v.genotypes[0])
-        calls.append((v.CHROM, gene, name, full_lengths[0], ref_diff[0], sequences[0]))
-        calls.append((v.CHROM, gene, name, full_lengths[1], ref_diff[1], sequences[1]))
+        calls.append(
+            (v.CHROM, gene, name, "Allele1", full_lengths[0], ref_diff[0], sequences[0])
+        )
+        calls.append(
+            (v.CHROM, gene, name, "Allele2", full_lengths[1], ref_diff[1], sequences[1])
+        )
     return calls
 
 
@@ -105,17 +117,31 @@ def get_lengths_from_uploaded_vcf(contents, filename, repeats):
         os.remove(tempfile)
         return None
     df = pd.DataFrame(
-        calls, columns=["chrom", "gene", "sample", "length", "ref_diff", "sequence"]
+        calls,
+        columns=["chrom", "gene", "sample", "allele", "length", "ref_diff", "sequence"],
     )
+    # for every repeat in the dataframe, divide the length and ref_diff by the motif length
     df["length"] = df.apply(
-        lambda x: x["length"] / repeats.motif_length(x["gene"]),
+        lambda x: round(x["length"] / repeats.motif_length(x["gene"]), 2),
+        axis=1,
+    )
+    df["ref_diff"] = df.apply(
+        lambda x: round(x["ref_diff"] / repeats.motif_length(x["gene"]), 2),
         axis=1,
     )
     df["Group"] = "Uploaded"
+    df["Superpopulation"] = "Uploaded"
+    df["Sex"] = "Uploaded"
     os.remove(tempfile)
     return df
 
 
 def stats(df):
     """Calculate summary statistics mean and standard deviation for the data"""
-    return df.groupby("gene")["length"].agg(["mean", "std"])
+    return df.groupby("gene")["length"].agg(["mean", "std"]).round(1)
+
+
+def get_composition(df, gene, repeats):
+    """Calculate the composition of the dataset"""
+    motifs = repeats.motifs(gene)
+    df = df[df["gene"] == gene].drop(columns=["chrom", "length", "ref_diff"])
