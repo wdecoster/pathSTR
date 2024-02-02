@@ -23,7 +23,8 @@ def main():
     # Calculate mean and standard deviation per repeat for the comparison with uploaded data
     stat = parse.stats(df)
     # Create Dash app
-    app = Dash(__name__)
+    external_stylesheets = ["https://codepen.io/chriddyp/pen/bWLwgP.css"]
+    app = Dash(__name__, external_stylesheets=external_stylesheets)
 
     # Define app layout
     gene_options = [
@@ -34,7 +35,7 @@ def main():
             html.Div(
                 [
                     html.H1(
-                        "Pathogenic Repeats from 1000 Genomes Project nanopore resequencing"
+                        "Pathogenic Repeats from nanopore resequencing of the 1000 Genomes Project"
                     ),
                 ],
                 style={
@@ -143,7 +144,40 @@ def main():
                                 max_size=100000,
                             ),
                             html.Div(id="upload-status"),
-                            dash_table.DataTable(id="user-data-table"),
+                            dash_table.DataTable(
+                                id="user-data-table",
+                                sort_action="native",
+                                filter_action="native",
+                                row_deletable=True,
+                                page_action="native",
+                                page_size=50,
+                                style_cell={
+                                    "fontSize": 14,
+                                    "font-family": "sans-serif",
+                                },
+                                style_header={
+                                    "backgroundColor": "white",
+                                    "fontWeight": "bold",
+                                    "font-family": "sans-serif",
+                                    "fontSize": 18,
+                                },
+                                style_data_conditional=[
+                                    {
+                                        "if": {"row_index": "odd"},
+                                        "backgroundColor": "rgb(248, 248, 248)",
+                                    },
+                                    {
+                                        "if": {
+                                            "column_id": "max_z_score",
+                                            "filter_query": "{max_z_score} > 3",
+                                        },
+                                        "fontWeight": "bold",
+                                        "color": "rgd(155, 0, 0)",
+                                    },
+                                ],
+                                export_format="xlsx",
+                                export_headers="display",
+                            ),
                         ],
                     ),
                     dcc.Tab(
@@ -191,7 +225,7 @@ def main():
                                                 target="_blank",
                                             ),
                                             " from samples of the 1000 Genomes project, sequenced on the Oxford Nanopore Technologies PromethION. In the length plot, each dot represents a repeat length in total repeat motifs, including those in the reference genome. "
-                                            "You can upload your own STRdust VCF.gz file(s) to show alongside the 1000 Genomes data for comparison, but this is currently limited to 100kb files, please let me know if more would be required. The source code is available on ",
+                                            "You can upload your own STRdust VCF.gz file(s) to show alongside the 1000 Genomes data for comparison, but this is currently limited to 100kb files, please let me know if more would be required. Note that as the app cannot figure out the sex of your individuals, males will show two alleles on haploid chromosomes. This is corrected for samples in the 1000 Genomes cohort. The source code is available on ",
                                             html.A(
                                                 "GitHub",
                                                 href="https://github.com/wdecoster/pathSTR-1000G",
@@ -271,9 +305,10 @@ def main():
                         pd.DataFrame(()).to_dict("records")
                     ), f"Error processing file {filename}"
             uploaded_df = pd.concat(dfs, ignore_index=True)
-            return uploaded_df.to_dict("records"), f"Uploaded {len(dfs)} files"
+            plural = "s" if len(dfs) > 1 else ""
+            return uploaded_df.to_dict("records"), f"Uploaded {len(dfs)} file{plural}"
         else:
-            return dash.no_update, dash.no_update
+            return pd.DataFrame(()).to_dict("records"), ""
 
     @app.callback(
         [Output("violin-plot", "figure"), Output("violin-plot-log", "figure")],
@@ -347,14 +382,72 @@ def main():
         Input("stored-df", "data"),
     )
     def update_table(data):
-        if data is None:
+        if data is None or len(data) == 0:
             return (
                 dash.no_update,
                 dash.no_update,
             )  # Don't update the table if no data is uploaded
+        user_df = (
+            pd.DataFrame(data)
+            .drop(columns=["chrom", "sequence", "Superpopulation", "Group", "Sex"])
+            .set_index("gene", drop=False)
+            .join(stat)
+        )
+        # Calculate z-scores for the uploaded data
+        user_df["z_score"] = (
+            (user_df["length"] - user_df["mean"]) / user_df["std"]
+        ).round(1)
+        # pivot the data to show a row per gene and sample - not per allele
+        user_df = user_df.pivot(
+            index=["gene", "sample"],
+            columns=["allele"],
+            values=["length", "z_score", "mean", "std"],
+        )
+        # Flatten the multi-index columns
+        user_df.columns = [
+            "_".join([str(v) for v in c]) for c in user_df.columns.to_flat_index()
+        ]
 
-        user_df = pd.DataFrame(data)
-        columns = [{"name": i, "id": i} for i in user_df.columns]
+        # Calculate a max z-score per row for ease of sorting
+        user_df["max_z_score"] = user_df[["z_score_Allele1", "z_score_Allele2"]].max(
+            axis=1
+        )
+        # drop duplicated mean and std columns and rename remaining
+        user_df = user_df.drop(columns=["mean_Allele2", "std_Allele2"]).rename(
+            columns={
+                "mean_Allele1": "1000G mean",
+                "std_Allele1": "1000G std",
+            }
+        )
+        # reorder the columns
+        user_df = user_df.reset_index().rename(
+            columns={
+                "sample": "individual",
+            }
+        )[
+            [
+                "individual",
+                "gene",
+                "length_Allele1",
+                "z_score_Allele1",
+                "length_Allele2",
+                "z_score_Allele2",
+                "max_z_score",
+                "1000G mean",
+                "1000G std",
+            ]
+        ]
+        # user_df.to_csv("pathSTR-1000G-user-data.tsv", sep="\t")
+        # make numeric columns numeric in the datatable
+        columns = [
+            (
+                {"name": c, "id": c, "deletable": True}
+                if c in ["individual", "gene"]
+                else {"name": c, "id": c, "deletable": True, "type": "numeric"}
+            )
+            for c in user_df.columns
+        ]
+
         return user_df.to_dict("records"), columns
 
     # Run the app
