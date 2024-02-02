@@ -28,7 +28,7 @@ class Repeats(object):
         )
         bed["motifs"] = bed["info"].apply(
             lambda x: [
-                i.replace("MOTIF=", "").split(",")
+                i.replace("MOTIFS=", "").split(",")
                 for i in x.split(";")
                 if i.startswith("MOTIFS=")
             ][0]
@@ -45,6 +45,9 @@ class Repeats(object):
 
     def motif_length(self, gene):
         return self.df.loc[self.df["name"] == gene, "motif_length"].values[0]
+
+    def motifs(self, gene):
+        return self.df.loc[self.df["name"] == gene, "motifs"].values[0]
 
     def gene(self, id):
         try:
