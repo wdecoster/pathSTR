@@ -5,7 +5,7 @@ def violin_plot(filtered_df, log=False, violin_options=None):
     fig = px.violin(
         filtered_df,
         x="Superpopulation" if "population" in violin_options else "gene",
-        y="ref_diff" if "reff_diff" in violin_options else "length",
+        y="ref_diff" if "ref_diff" in violin_options else "length",
         color="Sex" if "sex" in violin_options else "Group",
         points="all",
         hover_data=["sample"],
