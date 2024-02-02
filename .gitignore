@@ -4,3 +4,5 @@ pathSTR-1000G-vcfs.zip
 src/__pycache__/plot.cpython-310.pyc
 src/__pycache__/repeats.cpython-310.pyc
 src/__pycache__/parse_input.cpython-310.pyc
+src/__pycache__/parse_input.cpython-39.pyc
+pathSTR-1000G-user-data.tsv
