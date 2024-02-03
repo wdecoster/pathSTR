@@ -6,6 +6,7 @@ import pandas as pd
 import dash
 from dash import Dash, html, dcc, dash_table
 from dash.dependencies import Input, Output, State
+import dash_bootstrap_components as dbc
 from argparse import ArgumentParser
 import zipfile
 from flask import send_file
@@ -72,8 +73,7 @@ def main():
     if args.store_only:
         return
     # Create Dash app
-    external_stylesheets = ["https://codepen.io/chriddyp/pen/bWLwgP.css"]
-    app = Dash(__name__, external_stylesheets=external_stylesheets)
+    app = Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 
     # Define app layout
     gene_options = [
@@ -135,6 +135,7 @@ def main():
                                         id="dropdown-gene-length",
                                         options=gene_options,
                                         value=gene_options[0]["value"],
+                                        clearable=False,
                                     ),
                                     dcc.Checklist(
                                         id="violin_options",
@@ -162,30 +163,71 @@ def main():
                         label="Repeat Composition",
                         children=[
                             html.H1("Repeat Composition"),
-                            dcc.Dropdown(
-                                id="dropdown-gene-composition",
-                                options=gene_options,
-                                value=gene_options[0]["value"],
+                            dbc.Container(
+                                [
+                                    dbc.Row(
+                                        [
+                                            dbc.Col(
+                                                dcc.Dropdown(
+                                                    id="dropdown-gene-composition",
+                                                    options=gene_options,
+                                                    value=gene_options[0]["value"],
+                                                    clearable=False,
+                                                ),
+                                            ),
+                                            dbc.Col(
+                                                dcc.Dropdown(
+                                                    id="dropdown-kmer-motifs",
+                                                    clearable=False,
+                                                )
+                                            ),
+                                        ]
+                                    )
+                                ]
                             ),
-                            dcc.RadioItems(
-                                id="kmer_mode",
-                                options=[
-                                    {"label": "Collapsed", "value": "collapsed"},
-                                    {"label": "Raw", "value": "raw"},
-                                    {"label": "Sequence", "value": "sequence"},
+                            dbc.Container(
+                                [
+                                    dbc.Row(
+                                        [
+                                            dcc.RadioItems(
+                                                id="kmer_mode",
+                                                options=[
+                                                    {
+                                                        "label": "Collapsed",
+                                                        "value": "collapsed",
+                                                    },
+                                                    {"label": "Raw", "value": "raw"},
+                                                    {
+                                                        "label": "Sequence",
+                                                        "value": "sequence",
+                                                    },
+                                                ],
+                                                value="collapsed",
+                                                inline=True,
+                                            ),
+                                            html.Label("Minimal repeat length:"),
+                                            dcc.Slider(
+                                                id="repeat-len-slider",
+                                                min=0,
+                                                max=100,
+                                                step=1,
+                                                value=0,
+                                                marks={
+                                                    i: str(i) for i in range(0, 101, 10)
+                                                },
+                                            ),
+                                        ],
+                                    ),
                                 ],
-                                value="collapsed",
-                                inline=True,
                             ),
-                            dcc.Slider(
-                                id="repeat-len-slider",
-                                min=0,
-                                max=100,
-                                step=1,
-                                value=0,
-                                marks={i: str(i) for i in range(0, 101, 10)},
+                            html.Div(
+                                dcc.Graph(id="kmer-composition"),
+                                style={
+                                    "display": "flex",
+                                    "justifyContent": "center",
+                                    "alignItems": "center",
+                                },
                             ),
-                            html.Div(dcc.Graph(id="kmer-composition")),
                         ],
                     ),
                     dcc.Tab(
