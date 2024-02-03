@@ -67,11 +67,11 @@ def kmer_plot(kmer_df, mode="collapsed", min_length=0):
         kmer_df = kmer_df[kmer_df["length"] >= min_length].drop(columns=["length"])
     else:
         kmer_df = kmer_df.drop(columns=["length"])
-    if mode == "raw":
+    if mode == "raw" or mode == "collapsed":
         min_seen_kmer = 0.98 * len(kmer_df.index)
-        # only keep rows that are not < 0.01 for too many samples
+        # only keep columns that are not < 0.01 for too many samples
         mask1 = (kmer_df < 0.01).sum(axis=0) < (min_seen_kmer)
-        # but keep also rows that are above 0.1 for at least one sample
+        # but keep also columns that are above 0.1 for at least one sample
         mask2 = (kmer_df > 0.1).sum(axis=0) > 0
 
         kmer_df = kmer_df.loc[:, mask1 | mask2]
@@ -79,7 +79,7 @@ def kmer_plot(kmer_df, mode="collapsed", min_length=0):
         # the plot takes up a terrible lot of vertical space, so try splitting it up in <columns> columns
         # this however could be a problem on a small screen
         # maybe add another slider to select the number of columns
-        columns = 4
+        columns = ceil(len(kmer_df) / 500)
         fig = make_subplots(rows=1, cols=columns)
         batch_num = ceil(len(kmer_df) / columns)
         for i in range(0, columns):
@@ -100,12 +100,14 @@ def kmer_plot(kmer_df, mode="collapsed", min_length=0):
         fig.update_xaxes(tickfont_size=8, tickangle=45, side="top")
         fig.update_yaxes(tickfont_size=8)
 
+        height = 6000 if columns > 1 else len(kmer_df) * 12
+
         fig.update_layout(
             dict(
                 plot_bgcolor="rgba(0, 0, 0, 0)",
                 paper_bgcolor="rgba(0, 0, 0, 0)",
-                height=6000,
-                width=1600,
+                height=height,
+                width=height / 4,
             )
         )
         fig.update_coloraxes(colorscale="Blues")
