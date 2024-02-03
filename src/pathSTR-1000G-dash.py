@@ -132,7 +132,7 @@ def main():
                             html.Div(
                                 children=[
                                     dcc.Dropdown(
-                                        id="dropdown-gene",
+                                        id="dropdown-gene-length",
                                         options=gene_options,
                                         value=gene_options[0]["value"],
                                     ),
@@ -162,8 +162,30 @@ def main():
                         label="Repeat Composition",
                         children=[
                             html.H1("Repeat Composition"),
-                            # Add your code for the repeat composition tab here
-                            # ...
+                            dcc.Dropdown(
+                                id="dropdown-gene-composition",
+                                options=gene_options,
+                                value=gene_options[0]["value"],
+                            ),
+                            dcc.RadioItems(
+                                id="kmer_mode",
+                                options=[
+                                    {"label": "Collapsed", "value": "collapsed"},
+                                    {"label": "Raw", "value": "raw"},
+                                    {"label": "Sequence", "value": "sequence"},
+                                ],
+                                value="collapsed",
+                                inline=True,
+                            ),
+                            dcc.Slider(
+                                id="repeat-len-slider",
+                                min=0,
+                                max=100,
+                                step=1,
+                                value=0,
+                                marks={i: str(i) for i in range(0, 101, 10)},
+                            ),
+                            html.Div(dcc.Graph(id="kmer-composition")),
                         ],
                     ),
                     dcc.Tab(
@@ -359,10 +381,32 @@ def main():
         else:
             return pd.DataFrame(()).to_dict("records"), ""
 
+    # @app.callback(
+    #     Output("dropdown-gene-composition", "value"),
+    #     Input("dropdown-gene-length", "value"),
+    #     State("dropdown-gene-composition", "value"),
+    # )
+    # def update_gene_composition_dropdown(value_other, value_current):
+    #     if value_current == value_other:
+    #         return dash.no_update
+    #     else:
+    #         return value_other
+
+    # @app.callback(
+    #     Output("dropdown-gene-length", "value"),
+    #     Input("dropdown-gene-composition", "value"),
+    #     State("dropdown-gene-length", "value"),
+    # )
+    # def update_gene_length_dropdown(value_other, value_current):
+    #     if value_current == value_other:
+    #         return dash.no_update
+    #     else:
+    #         return value_other
+
     @app.callback(
         [Output("violin-plot", "figure"), Output("violin-plot-log", "figure")],
         [
-            Input("dropdown-gene", "value"),
+            Input("dropdown-gene-length", "value"),
             Input("stored-df", "data"),
             Input("violin_options", "value"),
         ],
@@ -382,6 +426,31 @@ def main():
             filtered_df,
             log=True,
             violin_options=violin_options,
+        )
+
+    @app.callback(
+        Output("kmer-composition", "figure"),
+        [
+            Input("dropdown-gene-composition", "value"),
+            Input("repeat-len-slider", "value"),
+            Input("kmer_mode", "value"),
+            Input("stored-df", "data"),
+        ],
+    )
+    def update_kmer_composition(selected_gene, minlength, kmer_mode, stored_df):
+        if len(stored_df) == 0:
+            kmer_df = kmers[selected_gene]
+        else:
+            # I am not too sure if this part with user data is going to work - especially if the axis to concatenate on is correct
+            stored_df = pd.DataFrame(stored_df)
+            kmer_df = pd.concat(
+                [kmers[selected_gene], parse_kmers(stored_df, repeats, selected_gene)],
+                ignore_index=True,
+            )
+        return plot.kmer_plot(
+            kmer_df,
+            mode=kmer_mode,
+            min_length=minlength,
         )
 
     @app.callback(

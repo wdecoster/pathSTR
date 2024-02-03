@@ -1,4 +1,7 @@
 import plotly.express as px
+from count_kmers import parse_kmers
+from plotly.subplots import make_subplots
+from math import ceil
 
 
 def violin_plot(filtered_df, log=False, violin_options=None):
@@ -49,3 +52,61 @@ def create_strip_plot(strip_df, log=False):
     else:
         fig.update_layout(showlegend=False)
     return fig
+
+
+def kmer_plot(kmer_df, mode="collapsed", min_length=0):
+    """
+    Create plots of kmers found in the repeat sequences.
+    The mode can be "raw", "collapsed" or "sequence"
+    raw: plot the heatmap of per repeat and per allele kmers - but that is a whole lot of data
+    collapsed: group similar samples together and plot the heatmap with a marginal histogram
+    sequences: plot the sequence of the 10 most frequent kmers in the order that they're found
+    optionally the minimum expansion length can be set to filter out alleles of short repeats
+    """
+    if min_length:
+        kmer_df = kmer_df[kmer_df["length"] >= min_length].drop(columns=["length"])
+    else:
+        kmer_df = kmer_df.drop(columns=["length"])
+    if mode == "raw":
+        min_seen_kmer = 0.98 * len(kmer_df.index)
+        # only keep rows that are not < 0.01 for too many samples
+        mask1 = (kmer_df < 0.01).sum(axis=0) < (min_seen_kmer)
+        # but keep also rows that are above 0.1 for at least one sample
+        mask2 = (kmer_df > 0.1).sum(axis=0) > 0
+
+        kmer_df = kmer_df.loc[:, mask1 | mask2]
+
+        # the plot takes up a terrible lot of vertical space, so try splitting it up in <columns> columns
+        # this however could be a problem on a small screen
+        # maybe add another slider to select the number of columns
+        columns = 4
+        fig = make_subplots(rows=1, cols=columns)
+        batch_num = ceil(len(kmer_df) / columns)
+        for i in range(0, columns):
+            fig.add_trace(
+                px.imshow(
+                    kmer_df[i * batch_num : (i + 1) * batch_num],
+                    labels=dict(
+                        x="kmers",
+                        y="identifier",
+                        color="Frequency",
+                    ),
+                    color_continuous_scale="Blues",
+                ).data[0],
+                row=1,
+                col=i + 1,
+            )
+        # make the axis labels a bit smaller
+        fig.update_xaxes(tickfont_size=8, tickangle=45, side="top")
+        fig.update_yaxes(tickfont_size=8)
+
+        fig.update_layout(
+            dict(
+                plot_bgcolor="rgba(0, 0, 0, 0)",
+                paper_bgcolor="rgba(0, 0, 0, 0)",
+                height=6000,
+                width=1600,
+            )
+        )
+        fig.update_coloraxes(colorscale="Blues")
+        return fig
