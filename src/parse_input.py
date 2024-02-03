@@ -7,54 +7,50 @@ import base64
 import sys
 
 
-def parse_input(vcf_list, sample_info, feather, repeats):
-    if vcf_list and sample_info:
-        # read in the VCFs
-        lengths = [get_lengths_from_vcf(vcf, repeats) for vcf in vcf_list]
-        # make a dataframe and join with the sample info
-        df = (
-            pd.DataFrame(
-                flatten(lengths),
-                columns=[
-                    "chrom",
-                    "gene",
-                    "sample",
-                    "allele",
-                    "length",
-                    "ref_diff",
-                    "sequence",
-                ],
-            )
-            .set_index("sample", drop=False)
-            .join(
-                pd.read_csv(
-                    sample_info,
-                    sep="\t",
-                    usecols=["Sample name", "Sex", "Superpopulation code"],
-                )
-                .set_index("Sample name")
-                .rename(columns={"Superpopulation code": "Superpopulation"})
-            )
-        ).assign(Group="1000 Genomes")
-        # for every repeat in the dataframe, divide the length by the motif length
-        df["length"] = df.apply(
-            lambda x: x["length"] / repeats.motif_length(x["gene"]), axis=1
-        )
-        df["ref_diff"] = df.apply(
-            lambda x: x["ref_diff"] / repeats.motif_length(x["gene"]), axis=1
-        )
-        # Remove duplicate hits for males on chrX
-        df = df[~((df["chrom"] == "chrX") & (df["Sex"] == "male") & df.duplicated())]
-        # Write to feather file for easier import later
-        df.to_feather("pathSTR-1000G.feather")
+def parse_input(vcf_list, sample_info, repeats):
 
-    elif feather:
-        df = pd.read_feather(feather)
-    else:
-        raise ValueError(
-            "Please provide --bed and either --vcf and --sample_info or --feather."
+    # read in the VCFs
+    lengths = [get_lengths_from_vcf(vcf, repeats) for vcf in vcf_list]
+    # make a dataframe and join with the sample info
+    df = (
+        pd.DataFrame(
+            flatten(lengths),
+            columns=[
+                "chrom",
+                "gene",
+                "sample",
+                "allele",
+                "length",
+                "ref_diff",
+                "sequence",
+            ],
         )
-    sys.stderr.write("Finished parsing input.\n")
+        .set_index("sample", drop=False)
+        .join(
+            pd.read_csv(
+                sample_info,
+                sep="\t",
+                usecols=["Sample name", "Sex", "Superpopulation code"],
+            )
+            .set_index("Sample name")
+            .rename(columns={"Superpopulation code": "Superpopulation"})
+        )
+    ).assign(Group="1000 Genomes")
+    # for every repeat in the dataframe, divide the length by the motif length
+    df["length"] = df.apply(
+        lambda x: x["length"] / repeats.motif_length(x["gene"]), axis=1
+    )
+    df["ref_diff"] = df.apply(
+        lambda x: x["ref_diff"] / repeats.motif_length(x["gene"]), axis=1
+    )
+    # Remove duplicate hits for males on chrX
+    df = df[
+        ~(
+            (df["chrom"] == "chrX")
+            & (df["Sex"] == "male")
+            & df.duplicated(subset=["sample", "gene", "length"], keep=False)
+        )
+    ]
     return df
 
 

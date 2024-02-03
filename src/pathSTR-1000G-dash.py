@@ -12,16 +12,65 @@ from flask import send_file
 import parse_input as parse
 from repeats import Repeats
 import plot
+from count_kmers import parse_kmers
+import os
+import sys
+import logging
 
 
 def main():
     args = get_args()
-    # read in the BED file with the STRs
-    repeats = Repeats(args.bed)
-    # parse the VCF and sample info file, or use the feather if provided
-    df = parse.parse_input(args.vcf, args.sample_info, args.feather, repeats)
-    # Calculate mean and standard deviation per repeat for the comparison with uploaded data
-    stat = parse.stats(df)
+    # Set up logging, with time stamps, to a file with max size of 10MB and simultaneously to stderr
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s - %(levelname)s - %(message)s",
+        handlers=[
+            logging.FileHandler("pathSTR-1000G-dash.log", mode="w"),
+            logging.StreamHandler(sys.stderr),
+        ],
+    )
+    logging.info("Starting pathSTR-1000G-dash")
+    if args.db:
+        df = pd.read_hdf(args.db, key="df")
+        kmers = {
+            gene: pd.read_hdf(args.db, key=f"kmer_{gene}")
+            for gene in df["gene"].unique()
+        }
+        stat = pd.read_hdf(args.db, key="stat")
+        repeats = Repeats(df=pd.read_hdf(args.db, key="repeats"))
+        logging.info("Finished reading pathSTR_db file.")
+    elif args.vcf and args.sample_info and args.bed:
+        # read in the BED file with the STRs
+        repeats = Repeats(args.bed)
+        logging.info("Finished parsing --bed.")
+        # parse the VCF and sample info file, or use the feather if provided
+        df = parse.parse_input(args.vcf, args.sample_info, repeats)
+        logging.info("Finished parsing --vcf.")
+        # Calculate mean and standard deviation per repeat for the comparison with uploaded data
+        stat = parse.stats(df)
+        logging.info("Finished calculating stats.")
+        kmers = {gene: parse_kmers(df, repeats, gene) for gene in df["gene"].unique()}
+
+        logging.info("Finished parsing kmers.")
+        if args.save_db:
+            if os.path.exists(args.save_db):
+                logging.warning("pathSTR_db file already exists, skipping.")
+            else:
+                df.to_hdf(args.save_db, key="df", mode="w")
+                stat.to_hdf(args.save_db, key="stat", mode="a")
+                for gene, kmer_df in kmers.items():
+                    kmer_df.to_hdf(args.save_db, key=f"kmer_{gene}", mode="a")
+                repeats.df.to_hdf(args.save_db, key="repeats", mode="a")
+                logging.info(f"Saved parsed data to {args.save_db}.")
+    else:
+        logging.error(
+            "Provide either a pathSTR_db file, or VCF, sample info and BED file."
+        )
+        raise ValueError(
+            "Provide either a pathSTR_db file, or VCF, sample info and BED file"
+        )
+    if args.store_only:
+        return
     # Create Dash app
     external_stylesheets = ["https://codepen.io/chriddyp/pen/bWLwgP.css"]
     app = Dash(__name__, external_stylesheets=external_stylesheets)
@@ -463,7 +512,13 @@ def get_args():
     )
     parser.add_argument("--bed", help="STRchive BED file with STRs")
     parser.add_argument("--sample_info", help="Sample info file")
-    parser.add_argument("--feather", help="Input is in one feather file")
+    parser.add_argument("--db", help="Input is in one pathSTR_db file")
+    parser.add_argument("--save_db", help="Save the parsed data to a pathSTR_db file")
+    parser.add_argument(
+        "--store_only",
+        help="Only store the parsed data and do not start the Dash app",
+        action="store_true",
+    )
     return parser.parse_args()
 
 

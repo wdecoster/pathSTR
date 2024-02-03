@@ -2,8 +2,13 @@ import pandas as pd
 
 
 class Repeats(object):
-    def __init__(self, bed):
-        self.df = self.get_repeat_info(bed)
+    def __init__(self, bed=None, df=None):
+        if bed:
+            self.df = self.get_repeat_info(bed)
+        elif df is not None:
+            self.df = df
+        else:
+            raise ValueError("Either bed or df must be provided")
 
     def get_repeat_info(self, bed):
         """
