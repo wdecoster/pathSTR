@@ -17,6 +17,7 @@ from count_kmers import parse_kmers
 import os
 import sys
 import logging
+from math import floor, ceil
 
 
 def main():
@@ -178,7 +179,6 @@ def main():
                                             dbc.Col(
                                                 dcc.Dropdown(
                                                     id="dropdown-kmer-motifs",
-                                                    clearable=False,
                                                 )
                                             ),
                                         ]
@@ -208,13 +208,8 @@ def main():
                                             html.Label("Minimal repeat length:"),
                                             dcc.Slider(
                                                 id="repeat-len-slider",
-                                                min=0,
-                                                max=100,
                                                 step=1,
                                                 value=0,
-                                                marks={
-                                                    i: str(i) for i in range(0, 101, 10)
-                                                },
                                             ),
                                         ],
                                     ),
@@ -494,6 +489,25 @@ def main():
             mode=kmer_mode,
             min_length=minlength,
         )
+
+    @app.callback(
+        Output("repeat-len-slider", "min"),
+        Output("repeat-len-slider", "max"),
+        Input("dropdown-gene-composition", "value"),
+    )
+    def update_slider_range(selected_gene):
+        """Update the slider based on the minimal and maximal length of the repeat"""
+        return floor(kmers[selected_gene]["length"].min()), ceil(
+            kmers[selected_gene]["length"].max()
+        )
+
+    @app.callback(
+        Output("dropdown-kmer-motifs", "options"),
+        Input("dropdown-gene-composition", "value"),
+    )
+    def update_kmer_motifs_options(selected_gene):
+        # Your logic here to determine the options based on the gene composition
+        return [i for i in kmers[selected_gene].columns if i != "length"]
 
     @app.callback(
         [Output("strip-plot-store", "data"), Output("strip-plot-log-store", "data")],
