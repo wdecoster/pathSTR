@@ -13,7 +13,12 @@ def parse_kmers(df, repeats, gene):
         if seq:
             kmers = count_kmers(seq, k=motif_length)
             if kmers:
-                kmers.update({"identifier": f"{sample}_{allele}", "length": len(seq)})
+                kmers.update(
+                    {
+                        "identifier": f"{sample}_{allele}",
+                        "length": len(seq) / motif_length,
+                    }
+                )
                 kmers_extracted.append(kmers),
     return (
         pd.DataFrame(kmers_extracted)
