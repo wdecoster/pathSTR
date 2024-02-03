@@ -48,7 +48,7 @@ def parse_input(vcf_list, sample_info, repeats):
         ~(
             (df["chrom"] == "chrX")
             & (df["Sex"] == "male")
-            & df.duplicated(subset=["sample", "gene", "length"], keep=False)
+            & df.duplicated(subset=["sample", "gene", "length"], keep="first")
         )
     ]
     return df
