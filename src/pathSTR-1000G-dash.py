@@ -85,7 +85,7 @@ def main():
             html.Div(
                 [
                     html.H1(
-                        "Pathogenic Repeats from nanopore resequencing of the 1000 Genomes Project"
+                        "Pathogenic tandem repeats in nanopore resequencing data of the 1000 Genomes Project"
                     ),
                 ],
                 style={
@@ -179,6 +179,7 @@ def main():
                                             dbc.Col(
                                                 dcc.Dropdown(
                                                     id="dropdown-kmer-motifs",
+                                                    multi=True,
                                                 )
                                             ),
                                         ]
@@ -535,12 +536,15 @@ def main():
         Output("kmer-composition", "figure"),
         [
             Input("dropdown-gene-composition", "value"),
+            Input("dropdown-kmer-motifs", "value"),
             Input("repeat-len-slider", "value"),
             Input("kmer_mode", "value"),
             Input("stored-df", "data"),
         ],
     )
-    def update_kmer_composition(selected_gene, minlength, kmer_mode, stored_df):
+    def update_kmer_composition(
+        selected_gene, kmer_sort, minlength, kmer_mode, stored_df
+    ):
         if len(stored_df) == 0:
             kmer_df = kmers[selected_gene]
         else:
@@ -554,7 +558,16 @@ def main():
             kmer_df,
             mode=kmer_mode,
             min_length=minlength,
+            sort_by=kmer_sort,
         )
+
+    # when the mode is not "raw" the dropdown for kmer-motifs should be disabled
+    @app.callback(
+        Output("dropdown-kmer-motifs", "disabled"),
+        Input("kmer_mode", "value"),
+    )
+    def disable_kmer_motifs_dropdown(mode):
+        return mode != "raw"
 
     @app.callback(
         Output("repeat-len-slider", "min"),

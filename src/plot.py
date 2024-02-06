@@ -54,7 +54,7 @@ def create_strip_plot(strip_df, log=False):
     return fig
 
 
-def kmer_plot(kmer_df, mode="collapsed", min_length=0):
+def kmer_plot(kmer_df, mode="collapsed", min_length=0, sort_by=None):
     """
     Create plots of kmers found in the repeat sequences.
     The mode can be "raw", "collapsed" or "sequence"
@@ -62,6 +62,11 @@ def kmer_plot(kmer_df, mode="collapsed", min_length=0):
     collapsed: group similar samples together and plot the heatmap with a marginal histogram
     sequences: plot the sequence of the 10 most frequent kmers in the order that they're found
     optionally the minimum expansion length can be set to filter out alleles of short repeats
+
+    :param kmer_df: the dataframe with the kmer counts
+    :param mode: the mode of the plot, either "raw", "collapsed" or "sequence"
+    :param min_length: the minimum length of the repeat to be included in the plot
+    :param sort_by: the kmer to sort the rows on (only for mode="raw")
     """
     if min_length:
         kmer_df = kmer_df[kmer_df["length"] >= min_length].drop(columns=["length"])
@@ -73,6 +78,8 @@ def kmer_plot(kmer_df, mode="collapsed", min_length=0):
     )
     kmer_df = kmer_df[kmer_frequency_sorted]
     if mode == "raw":
+        if sort_by:
+            kmer_df = kmer_df.sort_values(by=sort_by, ascending=False)
         min_seen_kmer = 0.98 * len(kmer_df.index)
         # only keep columns that are not < 0.01 for too many samples
         mask1 = (kmer_df < 0.01).sum(axis=0) < (min_seen_kmer)
@@ -90,7 +97,7 @@ def kmer_plot(kmer_df, mode="collapsed", min_length=0):
         for i in range(0, columns):
             fig.add_trace(
                 px.imshow(
-                    kmer_df[i * batch_num : (i + 1) * batch_num],
+                    kmer_df[i * batch_num : (i + 1) * batch_num][::-1],
                     labels=dict(
                         x="kmers",
                         y="identifier",
@@ -136,7 +143,6 @@ def kmer_plot(kmer_df, mode="collapsed", min_length=0):
             .apply(",".join)
             .reset_index()
         )
-        collapsed.to_csv("collapsed.csv", index=False, sep="\t")
         collapsed["count"] = collapsed["identifier"].apply(lambda x: len(x.split(",")))
         collapsed = collapsed.sort_values(by="count", ascending=False).reset_index(
             drop=True
