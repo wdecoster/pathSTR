@@ -226,6 +226,72 @@ def main():
                         ],
                     ),
                     dcc.Tab(
+                        label="Details per individual",
+                        children=[
+                            html.H1("Details per individual and repeat"),
+                            dbc.Container(
+                                [
+                                    dbc.Row(
+                                        [
+                                            dbc.Col(
+                                                [
+                                                    html.Label("Select individual:"),
+                                                    dcc.Dropdown(
+                                                        id="dropdown-details-individual",
+                                                        options=[
+                                                            {
+                                                                "label": individual,
+                                                                "value": individual,
+                                                            }
+                                                            for individual in df[
+                                                                "sample"
+                                                            ].unique()
+                                                        ],
+                                                        value=df["sample"].unique()[0],
+                                                        clearable=False,
+                                                        multi=True,
+                                                    ),
+                                                ]
+                                            ),
+                                            dbc.Col(
+                                                [
+                                                    html.Label("Select gene:"),
+                                                    dcc.Dropdown(
+                                                        id="dropdown-details-gene",
+                                                        options=gene_options,
+                                                        value=gene_options[0]["value"],
+                                                        clearable=False,
+                                                    ),
+                                                ]
+                                            ),
+                                        ]
+                                    )
+                                ]
+                            ),
+                            dash_table.DataTable(
+                                id="details-table",
+                                style_cell={
+                                    "fontSize": 14,
+                                    "font-family": "sans-serif",
+                                    "textAlign": "left",
+                                    "overflow": "hidden",
+                                    "textOverflow": "ellipsis",
+                                    "minWidth": "180px",
+                                    "width": "180px",
+                                    "maxWidth": "180px",
+                                },
+                                style_header={
+                                    "backgroundColor": "white",
+                                    "fontWeight": "bold",
+                                    "font-family": "sans-serif",
+                                    "fontSize": 18,
+                                },
+                                # style_table={"overflowX": "auto"},
+                                tooltip_duration=None,
+                            ),
+                        ],
+                    ),
+                    dcc.Tab(
                         label="Your data",
                         children=[
                             dcc.Store(id="stored-df"),
@@ -529,6 +595,46 @@ def main():
     )
     def update_strip_plot_from_store(strip_data, strip_log_data):
         return strip_data, strip_log_data
+
+    @app.callback(
+        [
+            Output("details-table", "data"),
+            Output("details-table", "columns"),
+            Output("details-table", "tooltip_data"),
+        ],
+        [
+            Input("dropdown-details-individual", "value"),
+            Input("dropdown-details-gene", "value"),
+        ],
+    )
+    def update_details_table(individuals, gene):
+        if isinstance(individuals, str):
+            individuals = [individuals]
+
+        detail_df = (
+            df[(df["gene"] == gene) & (df["sample"].isin(individuals))]
+            .reset_index(names="sample.1")
+            .drop(columns=["Group", "allele", "gene", "chrom"])
+            .round(1)
+            .groupby("sample")
+            .transform(lambda x: ",".join([str(i) for i in set(x)]))
+            .drop_duplicates()
+            .transpose()
+        )
+        detail_df = (
+            detail_df.rename(columns=detail_df.loc["sample.1"])
+            .drop("sample.1")
+            .reset_index(names="")
+        )
+        columns = [({"name": c, "id": c}) for c in detail_df.columns]
+        tooltip_data = [
+            {
+                column: {"value": str(value), "type": "markdown"}
+                for column, value in row.items()
+            }
+            for row in detail_df.to_dict("records")
+        ]
+        return detail_df.to_dict("records"), columns, tooltip_data
 
     @app.callback(
         Output("download-zip-link", "href"),
