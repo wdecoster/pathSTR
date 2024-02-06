@@ -23,6 +23,7 @@ def parse_input(vcf_list, sample_info, repeats):
                 "length",
                 "ref_diff",
                 "sequence",
+                "support",
             ],
         )
         .set_index("sample", drop=False)
@@ -64,12 +65,31 @@ def get_lengths_from_vcf(vcf, repeats):
             continue
         full_lengths = v.INFO.get("FRB")
         ref_diff = v.INFO.get("RB")
+        support = v.format("SUP")[0]
         sequences = parse_alts(v.ALT, v.genotypes[0])
         calls.append(
-            (v.CHROM, gene, name, "Allele1", full_lengths[0], ref_diff[0], sequences[0])
+            (
+                v.CHROM,
+                gene,
+                name,
+                "Allele1",
+                full_lengths[0],
+                ref_diff[0],
+                sequences[0],
+                support[0],
+            )
         )
         calls.append(
-            (v.CHROM, gene, name, "Allele2", full_lengths[1], ref_diff[1], sequences[1])
+            (
+                v.CHROM,
+                gene,
+                name,
+                "Allele2",
+                full_lengths[1],
+                ref_diff[1],
+                sequences[1],
+                support[1],
+            )
         )
     return calls
 
@@ -114,7 +134,16 @@ def get_lengths_from_uploaded_vcf(contents, filename, repeats):
         return None
     df = pd.DataFrame(
         calls,
-        columns=["chrom", "gene", "sample", "allele", "length", "ref_diff", "sequence"],
+        columns=[
+            "chrom",
+            "gene",
+            "sample",
+            "allele",
+            "length",
+            "ref_diff",
+            "sequence",
+            "support",
+        ],
     )
     # for every repeat in the dataframe, divide the length and ref_diff by the motif length
     df["length"] = df.apply(
