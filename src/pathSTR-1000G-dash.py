@@ -209,8 +209,6 @@ def main():
                                             html.Label("Minimal repeat length:"),
                                             dcc.Slider(
                                                 id="repeat-len-slider",
-                                                step=1,
-                                                value=0,
                                             ),
                                         ],
                                     ),
