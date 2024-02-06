@@ -146,7 +146,8 @@ def kmer_plot(kmer_df, mode="collapsed", min_length=0):
             rows=1,
             cols=2,
             column_widths=[0.8, 0.2],
-            subplot_titles=("Kmer frequency", "Frequency histogram"),
+            shared_yaxes=True,
+            subplot_titles=("Kmer frequency", "Number of carriers"),
         )
 
         fig.add_trace(
@@ -160,22 +161,25 @@ def kmer_plot(kmer_df, mode="collapsed", min_length=0):
         )
         fig.add_trace(
             px.bar(
-                y=collapsed["count"],
-                x=collapsed.index,
+                x=collapsed["count"][::-1],
+                y=collapsed.index[::-1],
                 orientation="h",
             ).data[0],
             row=1,
             col=2,
         )
+
         # make the axis labels a bit smaller
-        fig.update_xaxes(tickfont_size=8, tickangle=45, side="top")
-        fig.update_yaxes(tickfont_size=8)
+        fig.update_xaxes(tickfont_size=8, tickangle=45)
+        fig.update_yaxes(visible=False, showticklabels=False)
         fig.update_layout(
             {
                 "plot_bgcolor": "rgba(0, 0, 0, 0)",
                 "paper_bgcolor": "rgba(0, 0, 0, 0)",
-                "height": 800,
+                "height": 1200,
+                "width": 1200,
             }
         )
+        fig["layout"]["xaxis2"].update(title="Number of carriers in group")
         fig.update_coloraxes(colorscale="Blues")
         return fig
