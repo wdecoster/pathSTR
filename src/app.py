@@ -741,6 +741,7 @@ def main():
 
         return user_df.to_dict("records"), columns
 
+    app.title = "pathSTR-1000G"
     # Run the app
     app.run_server(debug=True)
 
