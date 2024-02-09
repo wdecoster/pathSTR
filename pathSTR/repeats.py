@@ -59,3 +59,6 @@ class Repeats(object):
             return self.df.loc[id, "name"]
         except KeyError:
             return None
+
+    def gene_to_coords(self, gene):
+        return self.df.loc[self.df["name"] == gene].index[0]

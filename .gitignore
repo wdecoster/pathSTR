@@ -9,3 +9,8 @@ pathSTR-1000G-user-data.tsv
 pathSTR-1000G-dash.log
 src/__pycache__/count_kmers.cpython-310.pyc
 1000G.pathSTRdb
+pathSTR/__pycache__/count_kmers.cpython-310.pyc
+pathSTR/__pycache__/parse_input.cpython-39.pyc
+pathSTR/__pycache__/parse_input.cpython-310.pyc
+pathSTR/__pycache__/plot.cpython-310.pyc
+pathSTR/__pycache__/repeats.cpython-310.pyc

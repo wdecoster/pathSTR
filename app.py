@@ -10,14 +10,15 @@ import dash_bootstrap_components as dbc
 from argparse import ArgumentParser
 import zipfile
 from flask import send_file
-import parse_input as parse
-from repeats import Repeats
-import plot
-from count_kmers import parse_kmers
+import pathSTR.parse_input as parse
+from pathSTR.repeats import Repeats
+import pathSTR.plot as plot
+from pathSTR.count_kmers import parse_kmers
 import os
 import sys
 import logging
 from math import floor, ceil
+import dash_bio as dashbio
 
 
 def main():
@@ -287,6 +288,9 @@ def main():
                                 },
                                 # style_table={"overflowX": "auto"},
                                 tooltip_duration=None,
+                            ),
+                            dcc.Loading(
+                                id="igv-output",
                             ),
                         ],
                     ),
@@ -619,6 +623,12 @@ def main():
         ],
     )
     def update_details_table(individuals, gene):
+        if not individuals:
+            return (
+                dash.no_update,
+                dash.no_update,
+                dash.no_update,
+            )
         if isinstance(individuals, str):
             individuals = [individuals]
 
@@ -646,6 +656,63 @@ def main():
             for row in detail_df.to_dict("records")
         ]
         return detail_df.to_dict("records"), columns, tooltip_data
+
+    @app.callback(
+        Output("igv-output", "children"),
+        [
+            Input("dropdown-details-individual", "value"),
+            Input("dropdown-details-gene", "value"),
+        ],
+    )
+    def return_igv(individuals, gene):
+        if not individuals:
+            return html.Div()
+        if isinstance(individuals, str):
+            individuals = [individuals]
+        locus = repeats.gene_to_coords(gene)
+        # Would be slightly more elegant to be able to get those values from the repeats object
+        # but this will do for now
+        # need the values separately to slightly extend the locus for better visualization
+        chrom = locus.split(":")[0]
+        start, end = [int(i) for i in locus.split(":")[1].split("-")]
+        return html.Div(
+            [
+                dashbio.Igv(
+                    id="igv",
+                    genome="hg38_1kg",
+                    # reference={
+                    #     "id": "hg38",
+                    #     "name": "Human (GRCh38/hg38)",
+                    #     "fastaURL": "https://ftp.1000genomes.ebi.ac.uk/vol1/ftp/data_collections/1KG_ONT_VIENNA/reference/1KG_ONT_VIENNA_hg38.fa.gz",
+                    #     "tracks": [
+                    #         {
+                    #             "name": "Refseq Genes",
+                    #             "url": "https://s3.amazonaws.com/igv.org.genomes/hg38/refGene.txt.gz",
+                    #             "indexed": False,
+                    #         }
+                    #     ],
+                    # },
+                    locus=f"{chrom}:{start-25}-{end+25}",
+                    tracks=(
+                        [
+                            make_igv_alignment_track(individual)
+                            for individual in individuals
+                        ]
+                    ),
+                )
+            ]
+        )
+
+    def make_igv_alignment_track(individual):
+        return {
+            "name": individual,
+            "type": "alignment",
+            "url": f"https://ftp.1000genomes.ebi.ac.uk/vol1/ftp/data_collections/1KG_ONT_VIENNA/hg38/{individual}.hg38.cram",
+            "indexURL": f"https://ftp.1000genomes.ebi.ac.uk/vol1/ftp/data_collections/1KG_ONT_VIENNA/hg38/{individual}.hg38.cram.crai",
+            "height": 300,
+            "format": "cram",
+            "showSoftClips": True,
+        }
 
     @app.callback(
         Output("download-zip-link", "href"),

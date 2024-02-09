@@ -1,5 +1,5 @@
 import plotly.express as px
-from count_kmers import parse_kmers
+from pathSTR.count_kmers import parse_kmers
 from plotly.subplots import make_subplots
 from math import ceil
 
