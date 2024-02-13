@@ -42,11 +42,11 @@ def main():
         stat = pd.read_hdf(args.db, key="stat")
         repeats = Repeats(df=pd.read_hdf(args.db, key="repeats"))
         logging.info("Finished reading pathSTR_db file.")
-    elif args.vcf and args.sample_info and args.bed:
-        # read in the BED file with the STRs
-        repeats = Repeats(args.bed)
-        logging.info("Finished parsing --bed.")
-        # parse the VCF and sample info file, or use the feather if provided
+    elif args.vcf and args.sample_info:
+        # read in the BED file with the STRs from STRchive
+        repeats = Repeats()
+        logging.info("Finished parsing repeats.")
+        # parse the VCF and sample info file
         df = parse.parse_input(args.vcf, args.sample_info, repeats)
         logging.info("Finished parsing --vcf.")
         # Calculate mean and standard deviation per repeat for the comparison with uploaded data
@@ -151,14 +151,36 @@ def main():
                                                 "label": "Show repeat length relative to reference genome",
                                                 "value": "ref_diff",
                                             },
+                                            {
+                                                "label": "Show log-transformed length",
+                                                "value": "log",
+                                            },
+                                            {
+                                                "label": "Show pathogenic length",
+                                                "value": "pathlen",
+                                            },
                                         ],
                                         value=[],
                                         inline=True,
+                                        inputStyle={"margin-left": "15px"},
                                     ),
                                 ]
                             ),
                             html.Div(dcc.Graph(id="violin-plot")),
-                            html.Div(dcc.Graph(id="violin-plot-log")),
+                            html.Div(
+                                dcc.Graph(
+                                    id="length-scatter",
+                                    style={
+                                        "display": "flex",
+                                        "justifyContent": "center",
+                                        "alignItems": "center",
+                                    },
+                                ),
+                                style={
+                                    "justifyContent": "center",
+                                    "alignItems": "center",
+                                },
+                            ),
                         ],
                     ),
                     dcc.Tab(
@@ -510,7 +532,7 @@ def main():
     #         return value_other
 
     @app.callback(
-        [Output("violin-plot", "figure"), Output("violin-plot-log", "figure")],
+        Output("violin-plot", "figure"),
         [
             Input("dropdown-gene-length", "value"),
             Input("stored-df", "data"),
@@ -526,11 +548,28 @@ def main():
             filtered_df = combined_df[combined_df["gene"] == selected_gene]
         return plot.violin_plot(
             filtered_df,
-            log=False,
+            path_length=repeats.pathogenic_min_length(selected_gene),  # shown optional
             violin_options=violin_options,
-        ), plot.violin_plot(
+        )
+
+    @app.callback(
+        Output("length-scatter", "figure"),
+        [
+            Input("dropdown-gene-length", "value"),
+            Input("stored-df", "data"),
+            Input("violin_options", "value"),
+        ],
+    )
+    def update_length_scatter(selected_gene, stored_df, violin_options):
+        if stored_df is None:
+            filtered_df = df[df["gene"] == selected_gene]
+        else:
+            stored_df = pd.DataFrame(stored_df)
+            combined_df = pd.concat([df, stored_df], ignore_index=True)
+            filtered_df = combined_df[combined_df["gene"] == selected_gene]
+        return plot.length_scatter(
             filtered_df,
-            log=True,
+            path_length=repeats.pathogenic_min_length(selected_gene),  # optional
             violin_options=violin_options,
         )
 
@@ -558,6 +597,7 @@ def main():
             )
         return plot.kmer_plot(
             kmer_df,
+            repeat_df=df,
             mode=kmer_mode,
             min_length=minlength,
             sort_by=kmer_sort,
@@ -712,6 +752,10 @@ def main():
             "height": 300,
             "format": "cram",
             "showSoftClips": True,
+            "showInsertionText": True,
+            "showDeletionText": True,
+            "showSoftClips": True,
+            "colorBy": "strand",
         }
 
     @app.callback(
@@ -820,7 +864,6 @@ def get_args():
         nargs="+",
         help="Input VCFs",
     )
-    parser.add_argument("--bed", help="STRchive BED file with STRs")
     parser.add_argument("--sample_info", help="Sample info file")
     parser.add_argument("--db", help="Input is in one pathSTR_db file")
     parser.add_argument("--save_db", help="Save the parsed data to a pathSTR_db file")

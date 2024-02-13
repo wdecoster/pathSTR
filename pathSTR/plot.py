@@ -1,22 +1,27 @@
+import sys
 import plotly.express as px
 from pathSTR.count_kmers import parse_kmers
 from plotly.subplots import make_subplots
-from math import ceil
+from math import ceil, log10
 
 
-def violin_plot(filtered_df, log=False, violin_options=None):
+def violin_plot(filtered_df, path_length=None, violin_options=None):
     fig = px.violin(
         filtered_df,
         x="Superpopulation" if "population" in violin_options else "gene",
         y="ref_diff" if "ref_diff" in violin_options else "length",
         color="Sex" if "sex" in violin_options else "Group",
-        log_y=log,
+        log_y="log" in violin_options,
         points="all",
         hover_data=["sample"],
     )
     fig.update_layout(
         xaxis_title="",
-        yaxis_title="Repeat length [log(units)]" if log else "Repeat length [units]",
+        yaxis_title=(
+            "Repeat length [log(units)]"
+            if "log" in violin_options
+            else "Repeat length [units]"
+        ),
     )
     fig.update_traces(spanmode="hard", marker=dict(size=3))
     if filtered_df["Group"].nunique() > 1 and "sex" not in violin_options:
@@ -25,6 +30,84 @@ def violin_plot(filtered_df, log=False, violin_options=None):
         fig.update_layout(legend_title_text="Sex")
     else:
         fig.update_layout(showlegend=False)
+    if "pathlen" in violin_options:
+        # if path_length is larger than the current y-axis, extend the y-axis
+        if path_length > filtered_df["length"].max():
+            if "log" in violin_options:
+                fig.update_layout(yaxis_range=[0, log10(ceil(path_length * 1.1))])
+            else:
+                fig.update_layout(yaxis_range=[1, ceil(path_length * 1.1)])
+        fig.add_hline(y=path_length, line_dash="dot", line_color="red")
+    return fig
+
+
+def length_scatter(filtered_df, path_length=None, violin_options=None):
+    pivot_df = filtered_df.pivot(
+        index="sample",
+        columns="allele",
+        values=["length", "ref_diff", "Sex", "Superpopulation", "Group"],
+    )
+    pivot_df.columns = [
+        "_".join([str(v) for v in c]) for c in pivot_df.columns.to_flat_index()
+    ]
+    pivot_df = (
+        pivot_df.drop(
+            columns=["Sex_Allele2", "Superpopulation_Allele2", "Group_Allele2"]
+        )
+        .rename(
+            columns={
+                "Sex_Allele1": "Sex",
+                "Superpopulation_Allele1": "Superpopulation",
+                "Group_Allele1": "Group",
+            }
+        )
+        .reset_index()
+        .fillna(  # fill NaNs with 0 for the scatter plot of males on chrX
+            {
+                "ref_diff_Allele1": 0,
+                "ref_diff_Allele2": 0,
+                "length_Allele1": 0,
+                "length_Allele2": 0,
+            }
+        )
+    )
+    fig = px.scatter(
+        pivot_df,
+        x="ref_diff_Allele1" if "ref_diff" in violin_options else "length_Allele1",
+        y="ref_diff_Allele2" if "ref_diff" in violin_options else "length_Allele2",
+        color="Sex" if "sex" in violin_options else "Group",
+        symbol="Superpopulation" if "population" in violin_options else None,
+        log_x="log" in violin_options,
+        log_y="log" in violin_options,
+        hover_data=["sample", "length_Allele1", "length_Allele2"],
+    )
+    if "pathlen" in violin_options:
+        # if path_length is larger than the current y-axis, extend the y-axis
+        if path_length > filtered_df["length"].max():
+            if "log" in violin_options:
+                fig.update_layout(yaxis_range=[0, log10(ceil(path_length * 1.1))])
+                fig.update_layout(xaxis_range=[0, log10(ceil(path_length * 1.1))])
+            else:
+                fig.update_layout(yaxis_range=[1, ceil(path_length * 1.1)])
+                fig.update_layout(xaxis_range=[1, ceil(path_length * 1.1)])
+        fig.add_hline(y=path_length, line_dash="dot", line_color="red")
+        fig.add_vline(x=path_length, line_dash="dot", line_color="red")
+    fig.update_traces(marker=dict(size=3))
+    if (
+        pivot_df["Group"].nunique() > 1
+        or "sex" in violin_options
+        or "population" in violin_options
+    ):
+        fig.update_layout(legend_title_text="Group")
+    else:
+        fig.update_layout(showlegend=False)
+
+    fig.update_layout(
+        height=1000,
+        width=1000,
+        xaxis_title="Repeat length Allele 1[units]",
+        yaxis_title="Repeat length Allele 2[units]",
+    )
     return fig
 
 
@@ -50,7 +133,7 @@ def create_strip_plot(strip_df, log=False):
     return fig
 
 
-def kmer_plot(kmer_df, mode="collapsed", min_length=0, sort_by=None):
+def kmer_plot(kmer_df, repeat_df, mode="collapsed", min_length=0, sort_by=None):
     """
     Create plots of kmers found in the repeat sequences.
     The mode can be "raw", "collapsed" or "sequence"
@@ -185,3 +268,15 @@ def kmer_plot(kmer_df, mode="collapsed", min_length=0, sort_by=None):
         fig["layout"]["xaxis2"].update(title="Number of carriers in group")
         fig.update_coloraxes(colorscale="Blues")
         return fig
+    elif mode == "sequence":
+        # using only the 10 most frequent kmers by limiting kmer_df to the first 10 columns
+        # assign a color to each kmer
+        colors = px.colors.qualitative.Plotly
+        kmer_dict = {k: c for k, c in zip(kmer_df.columns[:10], colors)}
+        # for the alt sequence of every individual,
+        # plot the order of the 10 most frequent kmers, with others in grey
+        repeat_df = repeat_df[repeat_df["length"] >= min_length]
+        # draw a scatter plot showing for each sample and allele the order of the kmers in the sequence
+    else:
+        sys.stderr.write("Invalid mode for kmer plot\n")
+        return None

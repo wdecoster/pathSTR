@@ -1,10 +1,9 @@
 import pandas as pd
 from itertools import chain
 import os
-from cyvcf2 import VCF
 import gzip
 import base64
-import sys
+from cyvcf2 import VCF
 
 
 def parse_input(vcf_list, sample_info, repeats):
