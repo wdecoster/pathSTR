@@ -3,27 +3,38 @@ import pandas as pd
 
 class Repeats(object):
     def __init__(self, bed=None, df=None):
-        if bed:
-            self.df = self.get_repeat_info(bed)
-        elif df is not None:
+        if df is not None:
             self.df = df
         else:
-            raise ValueError("Either bed or df must be provided")
+            self.df = self.get_repeat_info()
 
-    def get_repeat_info(self, bed):
+    def get_repeat_info(self):
         """
-        This function parses a bed file as obtained from STRchive, which is intended for TRGT,
-        but also works for STRdust.
+        This function parses a bed file as obtained from STRchive, which is intended for TRGT, but also works for STRdust.
+        In the future, perhaps this bed file will be downloaded straight from the STRchive github page.
+        For now a CSV is downloaded, with extra information about the repeats.
         """
+        url = "https://raw.githubusercontent.com/hdashnow/STRchive/main/data/hg38.STRchive-disease-loci.TRGT.bed"
         bed = pd.read_csv(
-            bed, sep="\t", header=None, names=["chrom", "start", "end", "info"]
+            url, sep="\t", header=None, names=["chrom", "start", "end", "info"]
         )
-        # the TRGT bed file has as ID the <disease>_<gene> and we only care about the gene
-        bed["name"] = bed["info"].apply(
-            lambda x: [i.split("_")[1] for i in x.split(";") if i.startswith("ID=")][
-                0
-            ].replace("ID=", "")
+        # isolating the id to match up with the repeat info csv that is downloaded from STRchive
+        bed["id"] = bed["info"].apply(
+            lambda x: [i for i in x.split(";") if i.startswith("ID=")][0].replace(
+                "ID=", ""
+            )
         )
+        # download the csv file from STRchive, and join it with the bed file to get the pathogenic_min length column
+        bed = bed.join(
+            pd.read_csv(
+                "https://raw.githubusercontent.com/hdashnow/STRchive/main/data/STR-disease-loci.csv",
+                usecols=["id", "pathogenic_min"],
+            ).set_index("id"),
+            on="id",
+        )
+
+        # the TRGT bed file has as ID the <disease>_<gene> and we only care about the gene for pathSTR
+        bed["name"] = bed["id"].apply(lambda x: x.split("_")[1])
         # in case there are duplicates in the name column, use the original ID from the info field
         dups = bed.duplicated(subset="name", keep=False)
         bed.loc[dups, "name"] = bed.loc[dups, "info"].apply(
@@ -31,6 +42,7 @@ class Repeats(object):
                 Repeats.fix_name(i) for i in x.split(";") if i.startswith("ID=")
             ][0].replace("ID=", "")
         )
+        # extracting the motifs and their length based on the bed info field
         bed["motifs"] = bed["info"].apply(
             lambda x: [
                 i.replace("MOTIFS=", "").split(",")
@@ -39,6 +51,7 @@ class Repeats(object):
             ][0]
         )
         bed["motif_length"] = bed["motifs"].apply(lambda x: len(x[0]))
+        # currently overwriting the id field of the table, but it would make more sense to have a more descriptive column name, e.g. "coords"
         bed["id"] = (
             bed["chrom"] + ":" + bed["start"].astype(str) + "-" + bed["end"].astype(str)
         )
@@ -62,3 +75,6 @@ class Repeats(object):
 
     def gene_to_coords(self, gene):
         return self.df.loc[self.df["name"] == gene].index[0]
+
+    def pathogenic_min_length(self, gene):
+        return self.df.loc[self.df["name"] == gene, "pathogenic_min"].values[0]
