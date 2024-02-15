@@ -8,8 +8,6 @@ from dash import Dash, html, dcc, dash_table
 from dash.dependencies import Input, Output, State
 import dash_bootstrap_components as dbc
 from argparse import ArgumentParser
-import zipfile
-from flask import send_file
 import pathSTR.parse_input as parse
 from pathSTR.repeats import Repeats
 import pathSTR.plot as plot
@@ -380,36 +378,6 @@ def main():
                         ],
                     ),
                     dcc.Tab(
-                        label="Downloads",
-                        children=[
-                            html.H1("Download"),
-                            html.Div(
-                                [
-                                    # This button triggers the download
-                                    html.Button("Download Data as TSV", id="btn"),
-                                    # This component handles the download
-                                    dcc.Download(id="download"),
-                                ]
-                            ),
-                            html.Div(
-                                [
-                                    # Another button to download all VCFs as a ZIP
-                                    html.Button(
-                                        "Create ZIP file for download",
-                                        id="download-zip-button",
-                                    ),
-                                    html.A(
-                                        "Download ZIP",
-                                        id="download-zip-link",
-                                        download="pathSTR-1000G-vcfs.zip",
-                                        href="",
-                                        target="_blank",
-                                    ),
-                                ]
-                            ),
-                        ],
-                    ),
-                    dcc.Tab(
                         label="About",
                         children=[
                             html.H1("About"),
@@ -466,6 +434,54 @@ def main():
                                     ),
                                 ],
                                 style={"width": "80%", "margin": "auto"},
+                            ),
+                            html.H1("Downloads"),
+                            html.Div(
+                                [
+                                    html.Div(
+                                        children=[
+                                            html.Button(
+                                                "Download Data as TSV",
+                                                id="btn",
+                                                style={
+                                                    "backgroundColor": "#86888a",  # background color
+                                                    "border": "none",  # remove border
+                                                    "color": "white",  # text color
+                                                    "padding": "15px 32px",  # padding
+                                                    "textAlign": "center",  # center text
+                                                    "textDecoration": "none",  # remove underline
+                                                    "fontSize": "16px",  # font size
+                                                    "margin": "4px 2px",  # margin
+                                                    "cursor": "pointer",  # cursor style
+                                                    "borderRadius": "12px",  # rounded corners
+                                                    "marginRight": "10px",
+                                                },
+                                            ),
+                                            html.Button(
+                                                "Download STRdust VCFs",
+                                                id="download-zip-button",
+                                                style={
+                                                    "backgroundColor": "#86888a",  # background color
+                                                    "border": "none",  # remove border
+                                                    "color": "white",  # text color
+                                                    "padding": "15px 32px",  # padding
+                                                    "textAlign": "center",  # center text
+                                                    "textDecoration": "none",  # remove underline
+                                                    "fontSize": "16px",  # font size
+                                                    "margin": "4px 2px",  # margin
+                                                    "cursor": "pointer",  # cursor style
+                                                    "borderRadius": "12px",  # rounded corners
+                                                },
+                                            ),
+                                        ],
+                                        style={
+                                            "display": "flex",
+                                            "justifyContent": "flex-start",
+                                        },
+                                    ),
+                                    dcc.Download(id="download"),
+                                    dcc.Download(id="download-zip"),
+                                ],
                             ),
                         ],
                     ),
@@ -759,24 +775,12 @@ def main():
         }
 
     @app.callback(
-        Output("download-zip-link", "href"),
+        Output("download-zip", "data"),
         [Input("download-zip-button", "n_clicks")],
+        prevent_initial_call=True,
     )
-    def generate_zip(n_clicks):
-        if n_clicks is not None:
-            with zipfile.ZipFile("pathSTR-1000G-vcfs.zip", "w") as zipf:
-                for file in args.vcf:
-                    zipf.write(file)
-            return "/download_zip/"
-
-    @app.server.route("/download_zip/")
-    def download_zip():
-        return send_file(
-            "pathSTR-1000G-vcfs.zip",
-            mimetype="zip",
-            as_attachment=True,
-            attachment_filename="pathSTR-1000G-vcfs.zip",
-        )
+    def download_zip(n_clicks):
+        return dcc.send_file("/home/wdecoster/local/pathSTR_STRdust_good_samples.zip")
 
     @app.callback(
         Output("user-data-table", "data"),
