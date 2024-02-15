@@ -1,12 +1,4 @@
-pathSTR-1000G.feather
-pathSTR-1000G-vcfs.zip
 .vscode/sftp.json
-src/__pycache__/plot.cpython-310.pyc
-src/__pycache__/repeats.cpython-310.pyc
-src/__pycache__/parse_input.cpython-310.pyc
-src/__pycache__/parse_input.cpython-39.pyc
-pathSTR-1000G-user-data.tsv
-pathSTR-1000G-dash.log
-src/__pycache__/count_kmers.cpython-310.pyc
 1000G.pathSTRdb
 pathSTR/__pycache__/*
+pathSTR-1000G-dash.log
