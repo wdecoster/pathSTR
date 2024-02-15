@@ -780,7 +780,7 @@ def main():
         prevent_initial_call=True,
     )
     def download_zip(n_clicks):
-        return dcc.send_file("/home/wdecoster/local/pathSTR_STRdust_good_samples.zip")
+        return dcc.send_file("pathSTR_STRdust_good_samples.zip")
 
     @app.callback(
         Output("user-data-table", "data"),
