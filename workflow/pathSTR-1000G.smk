@@ -51,6 +51,10 @@ rule all:
             os.path.join(outdir, "pathSTR_STRdust/{sample}.vcf.gz"),
             sample=samples.index,
         ),
+        length_vs_yield=os.path.join(outdir, "plots/length_vs_yield.html"),
+        good_samples=os.path.join(
+            outdir, "pathSTR_STRdust_good_samples/good_samples.txt"
+        ),
 
 
 rule strdust_unphased:
@@ -78,3 +82,65 @@ rule strdust_unphased:
         {params.cram} 2> {log} \
         | bgzip > {output} 2>> {log}
         """
+
+
+rule cramino:
+    output:
+        os.path.join(outdir, "cramino/{sample}.cramino"),
+    log:
+        "logs/cramino/{sample}.log",
+    params:
+        cram=get_path,
+        ref=ref,
+        binary="/home/wdecoster/repositories/cramino/target/release/cramino",
+    shell:
+        "{params.binary} --karyotype --reference {params.ref} {params.cram} > {output} 2> {log}"
+
+
+rule cramino_gather:
+    input:
+        expand(os.path.join(outdir, "cramino/{sample}.cramino"), sample=samples.index),
+    output:
+        os.path.join(outdir, "cramino/cramino_all.tsv"),
+    log:
+        "logs/cramino_gather.log",
+    conda:
+        "/home/wdecoster/pathSTR-1000G/envs/pandas_plotly.yml"
+    params:
+        script=os.path.join(outdir, "scripts/cramino_gather.py"),
+    shell:
+        "/home/wdecoster/miniconda3/envs/pandas_plotly/bin/python {params.script} -i {input} -o {output} 2> {log}"
+
+
+rule plot_length_vs_yield:
+    input:
+        os.path.join(outdir, "cramino/cramino_all.tsv"),
+    output:
+        os.path.join(outdir, "plots/length_vs_yield.html"),
+    log:
+        "logs/plot_length_vs_yield.log",
+    conda:
+        "/home/wdecoster/pathSTR-1000G/envs/pandas_plotly.yml"
+    params:
+        script=os.path.join(outdir, "scripts/yield_vs_length.py"),
+    shell:
+        "/home/wdecoster/miniconda3/envs/pandas_plotly/bin/python {params.script} -i {input} -o {output} 2> {log}"
+
+
+rule copy_good_samples:
+    input:
+        overview=os.path.join(outdir, "cramino/cramino_all.tsv"),
+        vcfs=expand(
+            os.path.join(outdir, "pathSTR_STRdust/{sample}.vcf.gz"),
+            sample=samples.index,
+        ),
+    output:
+        os.path.join(outdir, "pathSTR_STRdust_good_samples/good_samples.txt"),
+    log:
+        "logs/copy_good_samples.log",
+    conda:
+        "/home/wdecoster/pathSTR-1000G/envs/pandas_plotly.yml"
+    params:
+        script=os.path.join(outdir, "scripts/copy_good_samples.py"),
+    shell:
+        "outdir=$(dirname {output}) ; /home/wdecoster/miniconda3/envs/pandas_plotly/bin/python {params.script} -c {input.overview} -v {input.vcfs} -o $outdir 2> {log}"
