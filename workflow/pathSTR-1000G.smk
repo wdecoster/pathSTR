@@ -55,6 +55,7 @@ rule all:
         good_samples=os.path.join(
             outdir, "pathSTR_STRdust_good_samples/good_samples.txt"
         ),
+        sex_check=os.path.join(outdir, "plots/sex_check.html"),
 
 
 rule strdust_unphased:
@@ -144,3 +145,21 @@ rule copy_good_samples:
         script=os.path.join(outdir, "scripts/copy_good_samples.py"),
     shell:
         "outdir=$(dirname {output}) ; /home/wdecoster/miniconda3/envs/pandas_plotly/bin/python {params.script} -c {input.overview} -v {input.vcfs} -o $outdir 2> {log}"
+
+
+rule plot_sex_check:
+    input:
+        os.path.join(outdir, "cramino/cramino_all.tsv"),
+    output:
+        os.path.join(outdir, "plots/sex_check.html"),
+    log:
+        "logs/sex_check.log",
+    params:
+        script=os.path.join(os.path.dirname(workflow.basedir), "scripts/sex_check.py"),
+        sampleinfo=os.path.join(outdir, "data/igsr_samples.tsv"),
+        minyield=32,
+    shell:
+        """/home/wdecoster/miniconda3/envs/pandas_plotly/bin/python {params.script} \
+        --cramino {input} \
+        --sampleinfo {params.sampleinfo} \
+        --minyield {params.minyield} > {output} 2> {log}"""
