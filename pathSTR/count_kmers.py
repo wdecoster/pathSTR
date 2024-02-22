@@ -7,11 +7,12 @@ def parse_kmers(df, repeats, gene):
     kmers_extracted = []
     gene_df = df[df["gene"] == gene]
     motif_length = repeats.motif_length(gene)
+    known_motifs = repeats.motifs(gene)
     for sample, allele, seq in gene_df[["sample", "allele", "sequence"]].itertuples(
         index=False, name=None
     ):
         if seq:
-            kmers = count_kmers(seq, k=motif_length)
+            kmers = count_kmers(seq, k=motif_length, motifs=known_motifs)
             if kmers:
                 kmers.update(
                     {
@@ -29,30 +30,37 @@ def parse_kmers(df, repeats, gene):
     )
 
 
-def count_kmers(seq, k):
+def count_kmers(seq, k, motifs=None):
     kmers = Counter()
     for i in range(len(seq) - k + 1):
         kmers[seq[i : i + k]] += 1
-    return prune_counts(kmers)
+    return prune_counts(kmers, motifs)
 
 
-def get_rotations(kmer):
+def get_rotations(kmer, motifs):
     """
     Rotate a kmer to get all equivalent representations
+    Return the lexicographical first separately, except if motifs are given
+    Then prioritize known motifs. For now there is no rule on how to prioritize the known motifs.
+    Also return all rotations.
     """
     e = len(kmer)
     rotations = [kmer[i:e] + kmer[:i] for i in range(e)]
-    return sorted(rotations)[0], rotations
+    known_motifs = [m for m in motifs if m in rotations]
+    if known_motifs:
+        return known_motifs[0], rotations
+    else:
+        return sorted(rotations)[0], rotations
 
 
-def prune_counts(kmers):
+def prune_counts(kmers, motifs=None):
     """
     For all rotations of a kmer, keep only the lexicographical first
     Return the number as a fraction of the total kmers
     """
     pruned = dict()
     for key in kmers:
-        first, rotations = get_rotations(key)
+        first, rotations = get_rotations(key, motifs)
         if first in pruned.keys():
             continue
         else:
