@@ -3,18 +3,31 @@ import plotly.express as px
 from pathSTR.count_kmers import parse_kmers
 from plotly.subplots import make_subplots
 from math import ceil, log10
+import plotly.graph_objects as go
 
 
 def violin_plot(filtered_df, path_length=None, violin_options=None):
-    fig = px.violin(
-        filtered_df,
-        x="Superpopulation" if "population" in violin_options else "gene",
-        y="ref_diff" if "ref_diff" in violin_options else "length",
-        color="Sex" if "sex" in violin_options else "Group",
-        log_y="log" in violin_options,
-        points="all",
-        hover_data=["sample"],
-    )
+    if "density" in violin_options:
+        fig = px.violin(
+            filtered_df,
+            x="Superpopulation" if "population" in violin_options else "gene",
+            y="ref_diff" if "ref_diff" in violin_options else "length",
+            color="Sex" if "sex" in violin_options else "Group",
+            log_y="log" in violin_options,
+            points="all",
+            hover_data=["sample"],
+        )
+        fig.update_traces(spanmode="hard", marker=dict(size=3))
+    else:
+        fig = px.strip(
+            filtered_df,
+            x="Superpopulation" if "population" in violin_options else "gene",
+            y="ref_diff" if "ref_diff" in violin_options else "length",
+            color="Sex" if "sex" in violin_options else "Group",
+            log_y="log" in violin_options,
+            hover_data=["sample"],
+        )
+        fig.update_traces(marker=dict(size=3))
     fig.update_layout(
         xaxis_title="",
         yaxis_title=(
@@ -23,7 +36,6 @@ def violin_plot(filtered_df, path_length=None, violin_options=None):
             else "Repeat length [units]"
         ),
     )
-    fig.update_traces(spanmode="hard", marker=dict(size=3))
     if filtered_df["Group"].nunique() > 1 and "sex" not in violin_options:
         fig.update_layout(legend_title_text="Group")
     elif "sex" in violin_options:
@@ -71,16 +83,53 @@ def length_scatter(filtered_df, path_length=None, violin_options=None):
             }
         )
     )
+    pivot_df["longest_allele"] = pivot_df.apply(
+        lambda x: max(x["length_Allele1"], x["length_Allele2"]), axis=1
+    )
+    pivot_df["shortest_allele"] = pivot_df.apply(
+        lambda x: min(x["length_Allele1"], x["length_Allele2"]), axis=1
+    )
+    pivot_df["ref_diff_longest"] = pivot_df.apply(
+        lambda x: max(x["ref_diff_Allele1"], x["ref_diff_Allele2"]), axis=1
+    )
+    pivot_df["ref_diff_shortest"] = pivot_df.apply(
+        lambda x: min(x["ref_diff_Allele1"], x["ref_diff_Allele2"]), axis=1
+    )
+
     fig = px.scatter(
         pivot_df,
-        x="ref_diff_Allele1" if "ref_diff" in violin_options else "length_Allele1",
-        y="ref_diff_Allele2" if "ref_diff" in violin_options else "length_Allele2",
+        x="ref_diff_longest" if "ref_diff" in violin_options else "longest_allele",
+        y="ref_diff_shortest" if "ref_diff" in violin_options else "shortest_allele",
         color="Sex" if "sex" in violin_options else "Group",
         symbol="Superpopulation" if "population" in violin_options else None,
         log_x="log" in violin_options,
         log_y="log" in violin_options,
-        hover_data=["sample", "length_Allele1", "length_Allele2"],
+        hover_data=[
+            "sample",
+            "longest_allele",
+            "shortest_allele",
+            "ref_diff_longest",
+            "ref_diff_shortest",
+        ],
     )
+    fig.update_traces(marker=dict(size=3))
+    if "density" in violin_options:
+        fig.add_histogram2dcontour(
+            x=(
+                pivot_df["ref_diff_longest"]
+                if "ref_diff" in violin_options
+                else pivot_df["longest_allele"]
+            ),
+            y=(
+                pivot_df["ref_diff_shortest"]
+                if "ref_diff" in violin_options
+                else pivot_df["shortest_allele"]
+            ),
+            xaxis="x",
+            yaxis="y",
+            colorscale="Blues",
+            showscale=False,
+        )
     if "pathlen" in violin_options:
         # if path_length is larger than the current y-axis, extend the y-axis
         if path_length > filtered_df["length"].max():
@@ -92,7 +141,14 @@ def length_scatter(filtered_df, path_length=None, violin_options=None):
                 fig.update_layout(xaxis_range=[1, ceil(path_length * 1.1)])
         fig.add_hline(y=path_length, line_dash="dot", line_color="red")
         fig.add_vline(x=path_length, line_dash="dot", line_color="red")
-    fig.update_traces(marker=dict(size=3))
+    else:
+        if "log" in violin_options:
+            fig.update_layout(
+                xaxis_range=[0, log10(ceil(filtered_df["length"].max() * 1.1))]
+            )
+            fig.update_layout(
+                yaxis_range=[0, log10(ceil(filtered_df["length"].max() * 1.1))]
+            )
     if (
         pivot_df["Group"].nunique() > 1
         or "sex" in violin_options
@@ -102,11 +158,15 @@ def length_scatter(filtered_df, path_length=None, violin_options=None):
     else:
         fig.update_layout(showlegend=False)
 
+    # make the y-range the same as the x-range
+
     fig.update_layout(
         height=1000,
         width=1000,
-        xaxis_title="Repeat length Allele 1[units]",
-        yaxis_title="Repeat length Allele 2[units]",
+        xaxis_title="Repeat length longer allele [units]",
+        yaxis_title="Repeat length shorter allele [units]",
+        # use a white background
+        plot_bgcolor="rgba(0, 0, 0, 0)",
     )
     return fig
 
