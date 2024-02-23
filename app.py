@@ -157,8 +157,12 @@ def main():
                                                 "label": "Show pathogenic length",
                                                 "value": "pathlen",
                                             },
+                                            {
+                                                "label": "Show density",
+                                                "value": "density",
+                                            },
                                         ],
-                                        value=[],
+                                        value=["density"],
                                         inline=True,
                                         inputStyle={"margin-left": "15px"},
                                     ),
@@ -858,7 +862,7 @@ def main():
 
     app.title = "pathSTR-1000G"
     # Run the app
-    app.run_server(debug=True)
+    app.run_server(debug=args.debug)
 
 
 def get_args():
@@ -874,6 +878,11 @@ def get_args():
     parser.add_argument(
         "--store_only",
         help="Only store the parsed data and do not start the Dash app",
+        action="store_true",
+    )
+    parser.add_argument(
+        "--debug",
+        help="Run the app in debug mode",
         action="store_true",
     )
     return parser.parse_args()
