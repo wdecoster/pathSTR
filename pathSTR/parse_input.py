@@ -39,10 +39,10 @@ def parse_input(vcf_list, sample_info, repeats):
     # for every repeat in the dataframe, divide the length by the motif length
     df["length"] = df.apply(
         lambda x: x["length"] / repeats.motif_length(x["gene"]), axis=1
-    )
+    ).round(2)
     df["ref_diff"] = df.apply(
         lambda x: x["ref_diff"] / repeats.motif_length(x["gene"]), axis=1
-    )
+    ).round(2)
     # Remove duplicate hits for males on chrX
     df = df[
         ~(
