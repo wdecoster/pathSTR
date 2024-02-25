@@ -9,11 +9,11 @@ from cyvcf2 import VCF
 def parse_input(vcf_list, sample_info, repeats):
 
     # read in the VCFs
-    lengths = [get_lengths_from_vcf(vcf, repeats) for vcf in vcf_list]
+    calls = [parse_vcf(vcf, repeats) for vcf in vcf_list]
     # make a dataframe and join with the sample info
     df = (
         pd.DataFrame(
-            flatten(lengths),
+            flatten(calls),
             columns=[
                 "chrom",
                 "gene",
@@ -54,7 +54,7 @@ def parse_input(vcf_list, sample_info, repeats):
     return df
 
 
-def get_lengths_from_vcf(vcf, repeats):
+def parse_vcf(vcf, repeats):
     calls = []
     name = os.path.basename(vcf).replace(".vcf.gz", "")
     for v in VCF(vcf):
@@ -111,7 +111,7 @@ def flatten(it):
     return chain.from_iterable(it)
 
 
-def get_lengths_from_uploaded_vcf(contents, filename, repeats):
+def parse_uploaded_vcf(contents, filename, repeats):
     content_type, content_string = contents.split(",")
     decoded = base64.b64decode(content_string)
     # write the decoded file to a temporary file
@@ -126,7 +126,7 @@ def get_lengths_from_uploaded_vcf(contents, filename, repeats):
         with gzip.open(tempfile, "wb") as f:
             f.write(decoded)
     try:
-        calls = get_lengths_from_vcf(tempfile, repeats)
+        calls = parse_vcf(tempfile, repeats)
     except OSError:
         # this happens when the file is not a VCF, or malformed
         os.remove(tempfile)

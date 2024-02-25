@@ -511,7 +511,7 @@ def main():
     def store_uploaded_data(list_of_contents, list_of_filenames, list_of_dates):
         if list_of_contents is not None:
             dfs = [
-                parse.get_lengths_from_uploaded_vcf(content, filename, repeats)
+                parse.parse_uploaded_vcf(content, filename, repeats)
                 for (content, filename, _) in zip(
                     list_of_contents, list_of_filenames, list_of_dates
                 )
