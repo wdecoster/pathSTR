@@ -391,20 +391,33 @@ def main():
                                 [
                                     html.P(
                                         [
-                                            "This web app was developed by Wouter De Coster. The STR genotypes have been obtained using ",
-                                            html.A(
-                                                "STRdust",
-                                                href="https://github.com/wdecoster/STRdust",
-                                                target="_blank",
-                                            ),
-                                            " from samples of the 1000 Genomes project, sequenced on the Oxford Nanopore Technologies PromethION. In the length plot, each dot represents a repeat length in total repeat motifs, including those in the reference genome. "
-                                            "You can upload your own STRdust VCF.gz file(s) to show alongside the 1000 Genomes data for comparison, but this is currently limited to 100kb files, please let me know if more would be required. Note that as the app cannot figure out the sex of your individuals, males will show two alleles on haploid chromosomes. This is corrected for samples in the 1000 Genomes cohort. The source code is available on ",
+                                            "This web app was developed by Wouter De Coster. ",
+                                            "The source code is available on ",
                                             html.A(
                                                 "GitHub",
                                                 href="https://github.com/wdecoster/pathSTR-1000G",
                                                 target="_blank",
                                             ),
-                                            ". If this resource is useful to you, please cite our ",
+                                            ". Feedback is welcome in the form of an ",
+                                            html.A(
+                                                "issue on GitHub",
+                                                href="https://github.com/wdecoster/pathSTR-1000G/issues",
+                                                target="_blank",
+                                            ),
+                                            " or by sending me an email.",
+                                        ]
+                                    ),
+                                    html.P(
+                                        [
+                                            "The STR genotypes have been obtained using ",
+                                            html.A(
+                                                "STRdust",
+                                                href="https://github.com/wdecoster/STRdust",
+                                                target="_blank",
+                                            ),
+                                            " from samples of the 1000 Genomes project, sequenced on the Oxford Nanopore Technologies PromethION. "
+                                            "Please let me know if you know a suitable dataset of control individuals to add, for which long read alignments are available online. ",
+                                            "If this resource is useful to you, please cite our ",
                                             html.A(
                                                 "publication",
                                                 href="https://github.com/wdecoster/pathSTR-1000G",
@@ -422,19 +435,19 @@ def main():
                                                 href="https://github.com/wdecoster/STRdust",
                                                 target="_blank",
                                             ),
-                                            ". Please let me know if you know a suitable dataset to add. Feedback is welcome in the form of an ",
-                                            html.A(
-                                                "issue on GitHub",
-                                                href="https://github.com/wdecoster/pathSTR-1000G/issues",
-                                                target="_blank",
-                                            ),
-                                            ". The repeat coordinates and motifs used in this app are obtained from ",
+                                            ".",
+                                        ]
+                                    ),
+                                    html.P(
+                                        [
+                                            "You can upload your own STRdust VCF.gz file(s) to show alongside the 1000 Genomes data for comparison, but this is currently limited to 100kb files, please let me know if more would be required. Note that as the app cannot figure out the sex of your individuals, males will show two alleles on haploid chromosomes. This is corrected for samples in the 1000 Genomes cohort. "
+                                            "The repeat coordinates and motifs used in this app are obtained from ",
                                             html.A(
                                                 "STRchive",
                                                 href="https://strhive.com/",
                                                 target="_blank",
                                             ),
-                                            ". Other dependencies are Python and the Dash and cyvcf2 modules for the web app, and snakemake to orchestrate the variant calling.",
+                                            ". Other dependencies are Python and the Dash/plotly, pandas, hdf5 and cyvcf2 modules for the web app, and snakemake to orchestrate the variant calling.",
                                         ],
                                         style={"textAlign": "justify"},
                                     ),
@@ -606,7 +619,7 @@ def main():
         ],
     )
     def update_kmer_composition(
-        selected_gene, kmer_sort, minlength, kmer_mode, stored_df
+        selected_gene, kmer_sort, length_range, kmer_mode, stored_df
     ):
         if len(stored_df) == 0:
             kmer_df = kmers[selected_gene]
@@ -649,7 +662,6 @@ def main():
         Input("dropdown-gene-composition", "value"),
     )
     def update_kmer_motifs_options(selected_gene):
-        # Your logic here to determine the options based on the gene composition
         return [i for i in kmers[selected_gene].columns if i != "length"]
 
     @app.callback(
