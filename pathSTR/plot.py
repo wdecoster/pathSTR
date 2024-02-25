@@ -335,12 +335,89 @@ def kmer_plot(kmer_df, repeat_df, mode="collapsed", length_range=None, sort_by=N
     elif mode == "sequence":
         # using only the 10 most frequent kmers by limiting kmer_df to the first 10 columns
         # assign a color to each kmer
-        colors = px.colors.qualitative.Plotly
+        colors = [
+            "rgb(31, 119, 180)",
+            "rgb(255, 127, 14)",
+            "rgb(44, 160, 44)",
+            "rgb(214, 39, 40)",
+            "rgb(148, 103, 189)",
+            "rgb(140, 86, 75)",
+            "rgb(227, 119, 194)",
+            "rgb(127, 127, 127)",
+            "rgb(188, 189, 34)",
+            "rgb(23, 190, 207)",
+        ]
         kmer_dict = {k: c for k, c in zip(kmer_df.columns[:10], colors)}
+        inverse_dict = {v: k for k, v in kmer_dict.items()}
+        inverse_dict["rgb(128, 128, 128)"] = "other"
+        motif_length = len(kmer_df.columns[0])
         # for the alt sequence of every individual,
         # plot the order of the 10 most frequent kmers, with others in grey
-        repeat_df = repeat_df[repeat_df["length"] >= min_length]
+        if length_range:
+            min_length = length_range[0]
+            max_length = length_range[1]
+            print(f"{min_length=}, {max_length=}")
+            repeat_df = (
+                repeat_df[
+                    repeat_df["length"].between(
+                        min_length, max_length, inclusive="both"
+                    )
+                ]
+                .sort_values(by="length", ascending=False)
+                .dropna(subset=["sequence"])
+            )
+        else:
+            repeat_df = repeat_df.sort_values(by="length", ascending=False).dropna(
+                subset=["sequence"]
+            )
         # draw a scatter plot showing for each sample and allele the order of the kmers in the sequence
+        # replace in the sequence from frequent to less frequent the kmers with their color
+        repeat_df["seq_colored"] = repeat_df["sequence"]
+        for k, c in kmer_dict.items():
+            repeat_df["seq_colored"] = repeat_df["seq_colored"].str.replace(
+                k, f"{c};" * len(k)
+            )
+        # replace the remaining nucleotides with grey
+        repeat_df["seq_colored"] = repeat_df["seq_colored"].str.replace(
+            r"[ACTG]", "rgb(128, 128, 128);", regex=True
+        )
+        # remove the last semicolon
+        repeat_df["seq_colored"] = repeat_df["seq_colored"].str.rstrip(";")
+        # split the seq_colored into a list
+        repeat_df["seq_colored"] = repeat_df["seq_colored"].str.split(";")
+        # add a range column to the dataframe, to enumerate the nucleotides
+        repeat_df["range"] = repeat_df["seq_colored"].apply(
+            lambda x: list(range(len(x)))
+        )
+        repeat_df["identifier"] = repeat_df["sample"] + "_" + repeat_df["allele"]
+        # explode the seq_colored and range columns for plotting
+        repeat_colors = repeat_df[
+            ["identifier", "sequence", "seq_colored", "range"]
+        ].explode(["seq_colored", "range"])
+        # convert colors back to kmers
+        repeat_colors["kmer"] = repeat_colors["seq_colored"].apply(
+            lambda x: inverse_dict[x]
+        )
+
+        fig = px.scatter(
+            repeat_colors,
+            x="range",
+            y="identifier",
+            color="kmer",
+            color_discrete_sequence=repeat_colors["seq_colored"].unique(),
+            hover_data=["kmer"],
+            labels={
+                "range": "Nucleotide position in repeat",
+                "identifier": "Sample/allele",
+            },
+            category_orders={"identifier": repeat_df["identifier"][::-1]},
+        )
+        fig.update_traces(marker=dict(size=3))
+        # make the y axis labels a bit smaller
+        fig.update_yaxes(tickfont_size=8)
+        with open("kmer_sequence.html", "w") as f:
+            f.write(fig.to_html())
+        return fig
     else:
         sys.stderr.write("Invalid mode for kmer plot\n")
         return None
