@@ -11,7 +11,8 @@ def parse_kmers(df, repeats, gene):
     for sample, allele, seq in gene_df[["sample", "allele", "sequence"]].itertuples(
         index=False, name=None
     ):
-        if seq:
+        # check if seq is a string, as it can be a float-like NaN for reasons I don't understand
+        if seq and isinstance(seq, str):
             kmers = count_kmers(seq, k=motif_length, motifs=known_motifs)
             if kmers:
                 kmers.update(
