@@ -231,8 +231,10 @@ def main():
                                                 value="collapsed",
                                                 inline=True,
                                             ),
-                                            html.Label("Minimal repeat length:"),
-                                            dcc.Slider(
+                                            html.Label(
+                                                "Minimal repeat length [in units]:"
+                                            ),
+                                            dcc.RangeSlider(
                                                 id="repeat-len-slider",
                                             ),
                                         ],
@@ -612,14 +614,14 @@ def main():
             # I am not too sure if this part with user data is going to work - especially if the axis to concatenate on is correct
             stored_df = pd.DataFrame(stored_df)
             kmer_df = pd.concat(
-                [kmers[selected_gene], parse_kmers(stored_df, repeats, selected_gene)],
-                ignore_index=True,
-            )
+                [kmers[selected_gene], parse_kmers(stored_df, repeats, selected_gene)]
+            ).fillna(0.0)
+        filtered_df = df[df["gene"] == selected_gene]
         return plot.kmer_plot(
             kmer_df,
-            repeat_df=df,
+            repeat_df=filtered_df,
             mode=kmer_mode,
-            min_length=minlength,
+            length_range=length_range,
             sort_by=kmer_sort,
         )
 

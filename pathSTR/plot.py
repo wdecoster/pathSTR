@@ -193,7 +193,7 @@ def create_strip_plot(strip_df, log=False):
     return fig
 
 
-def kmer_plot(kmer_df, repeat_df, mode="collapsed", min_length=0, sort_by=None):
+def kmer_plot(kmer_df, repeat_df, mode="collapsed", length_range=None, sort_by=None):
     """
     Create plots of kmers found in the repeat sequences.
     The mode can be "raw", "collapsed" or "sequence"
@@ -207,8 +207,12 @@ def kmer_plot(kmer_df, repeat_df, mode="collapsed", min_length=0, sort_by=None):
     :param min_length: the minimum length of the repeat to be included in the plot
     :param sort_by: the kmer to sort the rows on (only for mode="raw")
     """
-    if min_length:
-        kmer_df = kmer_df[kmer_df["length"] >= min_length].drop(columns=["length"])
+    if length_range:
+        min_length = length_range[0]
+        max_length = length_range[1]
+        kmer_df = kmer_df[
+            kmer_df["length"].between(min_length, max_length, inclusive="both")
+        ].drop(columns=["length"])
     else:
         kmer_df = kmer_df.drop(columns=["length"])
     # sorting the columns based on their total frequency
