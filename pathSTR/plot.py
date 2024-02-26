@@ -415,8 +415,6 @@ def kmer_plot(kmer_df, repeat_df, mode="collapsed", length_range=None, sort_by=N
         fig.update_traces(marker=dict(size=3))
         # make the y axis labels a bit smaller
         fig.update_yaxes(tickfont_size=8)
-        with open("kmer_sequence.html", "w") as f:
-            f.write(fig.to_html())
         return fig
     else:
         sys.stderr.write("Invalid mode for kmer plot\n")
