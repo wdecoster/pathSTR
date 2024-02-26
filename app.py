@@ -32,7 +32,7 @@ def main():
     )
     logging.info("Starting pathSTR-1000G-dash")
     if args.db:
-        df = pd.read_hdf(args.db, key="df")
+        df = pd.read_hdf(args.db, key="df").sort_values("gene")
         kmers = {
             gene: pd.read_hdf(args.db, key=f"kmer_{gene}")
             for gene in df["gene"].unique()
@@ -45,7 +45,7 @@ def main():
         repeats = Repeats()
         logging.info("Finished parsing repeats.")
         # parse the VCF and sample info file
-        df = parse.parse_input(args.vcf, args.sample_info, repeats)
+        df = parse.parse_input(args.vcf, args.sample_info, repeats).sort_values("gene")
         logging.info("Finished parsing --vcf.")
         # Calculate mean and standard deviation per repeat for the comparison with uploaded data
         stat = parse.stats(df)
@@ -84,7 +84,7 @@ def main():
             html.Div(
                 [
                     html.H1(
-                        "Pathogenic tandem repeats in nanopore resequencing data of the 1000 Genomes Project"
+                        "Medically-relevant tandem repeats in nanopore sequencing of control cohorts"
                     ),
                 ],
                 style={
@@ -99,19 +99,7 @@ def main():
                         label="Overview",
                         children=[
                             html.H1("Overview", style={"bottommargin": "0px"}),
-                            dcc.Store(id="strip-plot-store"),
                             dcc.Store(id="strip-plot-log-store"),
-                            dcc.Loading(
-                                id="loading-strip-1",
-                                type="cube",
-                                children=[
-                                    html.Div(
-                                        dcc.Graph(id="strip-plot"),
-                                        style={"margin": "0px"},
-                                    )
-                                ],
-                                style={"margin": "0px", "height": "20vh"},
-                            ),
                             dcc.Loading(
                                 id="loading-strip-2",
                                 type="cube",
@@ -314,6 +302,12 @@ def main():
                                 },
                                 # style_table={"overflowX": "auto"},
                                 tooltip_duration=None,
+                            ),
+                            dbc.Button(
+                                "Show in IGV",
+                                id="igv-button",
+                                color="primary",
+                                className="mt-2",
                             ),
                             dcc.Loading(
                                 id="igv-output",
@@ -665,25 +659,22 @@ def main():
         return [i for i in kmers[selected_gene].columns if i != "length"]
 
     @app.callback(
-        [Output("strip-plot-store", "data"), Output("strip-plot-log-store", "data")],
+        Output("strip-plot-log-store", "data"),
         Input("stored-df", "data"),
     )
     def update_stripplot(stored_df):
         if stored_df is None:
-            strip_df = df.sort_values("gene")
+            return plot.create_strip_plot(df, log=True)
         else:
-            stored_df = pd.DataFrame(stored_df)
-            strip_df = pd.concat([df, stored_df], ignore_index=True).sort_values("gene")
-        strip = plot.create_strip_plot(strip_df)
-        strip_log = plot.create_strip_plot(strip_df, log=True)
-        return strip, strip_log
+            strip_df = pd.concat([df, pd.DataFrame(stored_df)], ignore_index=True)
+            return plot.create_strip_plot(strip_df, log=True)
 
     @app.callback(
-        [Output("strip-plot", "figure"), Output("strip-plot-log", "figure")],
-        [Input("strip-plot-store", "data"), Input("strip-plot-log-store", "data")],
+        Output("strip-plot-log", "figure"),
+        Input("strip-plot-log-store", "data"),
     )
-    def update_strip_plot_from_store(strip_data, strip_log_data):
-        return strip_data, strip_log_data
+    def update_strip_plot_from_store(strip_log_data):
+        return strip_log_data
 
     @app.callback(
         [
@@ -712,7 +703,13 @@ def main():
             .drop(columns=["Group", "allele", "gene", "chrom"])
             .round(1)
             .groupby("sample")
-            .transform(lambda x: ",".join([str(i) for i in set(x)]))
+            .transform(
+                lambda x: (
+                    ",".join([str(i) for i in set(x)])
+                    if x.name in ["sample.1", "Sex", "Superpopulation"]
+                    else ",".join([str(i) for i in list(x)])
+                )
+            )
             .drop_duplicates()
             .transpose()
         )
@@ -733,49 +730,51 @@ def main():
 
     @app.callback(
         Output("igv-output", "children"),
+        Input("igv-button", "n_clicks"),
         [
-            Input("dropdown-details-individual", "value"),
-            Input("dropdown-details-gene", "value"),
+            State("dropdown-details-individual", "value"),
+            State("dropdown-details-gene", "value"),
         ],
     )
-    def return_igv(individuals, gene):
-        if not individuals:
-            return html.Div()
-        if isinstance(individuals, str):
-            individuals = [individuals]
-        locus = repeats.gene_to_coords(gene)
-        # Would be slightly more elegant to be able to get those values from the repeats object
-        # but this will do for now
-        # need the values separately to slightly extend the locus for better visualization
-        chrom = locus.split(":")[0]
-        start, end = [int(i) for i in locus.split(":")[1].split("-")]
-        return html.Div(
-            [
-                dashbio.Igv(
-                    id="igv",
-                    genome="hg38_1kg",
-                    # reference={
-                    #     "id": "hg38",
-                    #     "name": "Human (GRCh38/hg38)",
-                    #     "fastaURL": "https://ftp.1000genomes.ebi.ac.uk/vol1/ftp/data_collections/1KG_ONT_VIENNA/reference/1KG_ONT_VIENNA_hg38.fa.gz",
-                    #     "tracks": [
-                    #         {
-                    #             "name": "Refseq Genes",
-                    #             "url": "https://s3.amazonaws.com/igv.org.genomes/hg38/refGene.txt.gz",
-                    #             "indexed": False,
-                    #         }
-                    #     ],
-                    # },
-                    locus=f"{chrom}:{start-25}-{end+25}",
-                    tracks=(
-                        [
-                            make_igv_alignment_track(individual)
-                            for individual in individuals
-                        ]
-                    ),
-                )
-            ]
-        )
+    def return_igv(n_clicks, individuals, gene):
+        if n_clicks is not None:
+            if not individuals:
+                return html.Div()
+            if isinstance(individuals, str):
+                individuals = [individuals]
+            locus = repeats.gene_to_coords(gene)
+            # Would be slightly more elegant to be able to get those values from the repeats object
+            # but this will do for now
+            # need the values separately to slightly extend the locus for better visualization
+            chrom = locus.split(":")[0]
+            start, end = [int(i) for i in locus.split(":")[1].split("-")]
+            return html.Div(
+                [
+                    dashbio.Igv(
+                        id="igv",
+                        genome="hg38_1kg",
+                        # reference={
+                        #     "id": "hg38",
+                        #     "name": "Human (GRCh38/hg38)",
+                        #     "fastaURL": "https://ftp.1000genomes.ebi.ac.uk/vol1/ftp/data_collections/1KG_ONT_VIENNA/reference/1KG_ONT_VIENNA_hg38.fa.gz",
+                        #     "tracks": [
+                        #         {
+                        #             "name": "Refseq Genes",
+                        #             "url": "https://s3.amazonaws.com/igv.org.genomes/hg38/refGene.txt.gz",
+                        #             "indexed": False,
+                        #         }
+                        #     ],
+                        # },
+                        locus=f"{chrom}:{start-25}-{end+25}",
+                        tracks=(
+                            [
+                                make_igv_alignment_track(individual)
+                                for individual in individuals
+                            ]
+                        ),
+                    )
+                ]
+            )
 
     def make_igv_alignment_track(individual):
         return {
