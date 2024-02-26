@@ -6,7 +6,7 @@ from math import ceil, log10
 import plotly.graph_objects as go
 
 
-def violin_plot(filtered_df, path_length=None, violin_options=None):
+def violin_plot(filtered_df, repeats, selected_gene, violin_options=None):
     if "density" in violin_options:
         fig = px.violin(
             filtered_df,
@@ -35,6 +35,7 @@ def violin_plot(filtered_df, path_length=None, violin_options=None):
             if "log" in violin_options
             else "Repeat length [units]"
         ),
+        title_text=f"Repeat length distribution for {selected_gene}",
     )
     if filtered_df["Group"].nunique() > 1 and "sex" not in violin_options:
         fig.update_layout(legend_title_text="Group")
@@ -43,6 +44,13 @@ def violin_plot(filtered_df, path_length=None, violin_options=None):
     else:
         fig.update_layout(showlegend=False)
     if "pathlen" in violin_options:
+        # path length has to be corrected for the reference length
+        path_length = (
+            repeats.pathogenic_min_length(selected_gene) - repeats.reflen(selected_gene)
+            if "ref_diff" in violin_options
+            else repeats.pathogenic_min_length(selected_gene)
+        )
+
         # if path_length is larger than the current y-axis, extend the y-axis
         if path_length > filtered_df["length"].max():
             if "log" in violin_options:
@@ -193,7 +201,9 @@ def create_strip_plot(strip_df, log=False):
     return fig
 
 
-def kmer_plot(kmer_df, repeat_df, mode="collapsed", length_range=None, sort_by=None):
+def kmer_plot(
+    kmer_df, repeat_df, mode="collapsed", length_range=None, kmer_options=None
+):
     """
     Create plots of kmers found in the repeat sequences.
     The mode can be "raw", "collapsed" or "sequence"
@@ -221,8 +231,9 @@ def kmer_plot(kmer_df, repeat_df, mode="collapsed", length_range=None, sort_by=N
     )
     kmer_df = kmer_df[kmer_frequency_sorted]
     if mode == "raw":
-        if sort_by:
-            kmer_df = kmer_df.sort_values(by=sort_by, ascending=False)
+        if kmer_options:
+            # in the raw mode, the kmer_options indicates the kmer(s) to sort the rows on
+            kmer_df = kmer_df.sort_values(by=kmer_options, ascending=False)
         min_seen_kmer = 0.98 * len(kmer_df.index)
         # only keep columns that are not < 0.01 for too many samples
         mask1 = (kmer_df < 0.01).sum(axis=0) < (min_seen_kmer)
@@ -287,6 +298,10 @@ def kmer_plot(kmer_df, repeat_df, mode="collapsed", length_range=None, sort_by=N
             .reset_index()
         )
         collapsed["count"] = collapsed["identifier"].apply(lambda x: len(x.split(",")))
+        if kmer_options == "hide singletons":
+            # in the collapsed mode, the kmer_option indicates that singletons should be dropped or kept
+            collapsed = collapsed[collapsed["count"] > 1]
+
         collapsed = collapsed.sort_values(by="count", ascending=False).reset_index(
             drop=True
         )
@@ -415,6 +430,10 @@ def kmer_plot(kmer_df, repeat_df, mode="collapsed", length_range=None, sort_by=N
         fig.update_traces(marker=dict(size=3))
         # make the y axis labels a bit smaller
         fig.update_yaxes(tickfont_size=8)
+        if kmer_options:
+            # in the sequence mode, the kmer_options indicates the alignment of the plot relative to the x-axis
+            if kmer_options == "right-to-left":
+                fig.update_layout(xaxis_autorange="reversed")
         return fig
     else:
         sys.stderr.write("Invalid mode for kmer plot\n")
