@@ -874,9 +874,9 @@ def main():
 
         return user_df.to_dict("records"), columns
 
-    app.title = "pathSTR-1000G"
+    app.title = "pathSTR"
     # Run the app
-    app.run_server(debug=args.debug)
+    app.run(debug=args.debug)
 
 
 def get_args():
