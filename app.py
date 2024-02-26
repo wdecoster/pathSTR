@@ -74,7 +74,6 @@ def main():
         return
     # Create Dash app
     app = Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
-
     # Define app layout
     gene_options = [
         {"label": gene, "value": gene} for gene in sorted(df["gene"].unique().tolist())
@@ -190,10 +189,7 @@ def main():
                                                 ),
                                             ),
                                             dbc.Col(
-                                                dcc.Dropdown(
-                                                    id="dropdown-kmer-motifs",
-                                                    multi=True,
-                                                )
+                                                dcc.Dropdown(id="dropdown-kmer-options")
                                             ),
                                         ]
                                     )
@@ -577,7 +573,8 @@ def main():
             filtered_df = combined_df[combined_df["gene"] == selected_gene]
         return plot.violin_plot(
             filtered_df,
-            path_length=repeats.pathogenic_min_length(selected_gene),  # shown optional
+            repeats=repeats,  # show optionally the pathogenic length
+            selected_gene=selected_gene,
             violin_options=violin_options,
         )
 
@@ -602,18 +599,46 @@ def main():
             violin_options=violin_options,
         )
 
+    # change the settings for the kmer dropdown based on the mode
+    @app.callback(
+        [
+            Output("dropdown-kmer-options", "multi"),
+            Output("dropdown-kmer-options", "options"),
+            Output("dropdown-kmer-options", "value"),
+            Output("dropdown-kmer-options", "placeholder"),
+        ],
+        [Input("kmer_mode", "value"), Input("dropdown-gene-composition", "value")],
+    )
+    def disable_kmer_motifs_dropdown(mode, selected_gene):
+        if mode == "raw":
+            multi = True
+            options = [i for i in kmers[selected_gene].columns if i != "length"]
+            placeholder = "Select kmers to sort on"
+            value = ""
+        elif mode == "sequence":
+            multi = False
+            options = ["left-to-right", "right-to-left"]
+            placeholder = ""
+            value = "left-to-right"
+        else:
+            multi = False
+            options = ["hide singletons", "show everything"]
+            placeholder = ""
+            value = "show everything"
+        return multi, options, value, placeholder
+
     @app.callback(
         Output("kmer-composition", "figure"),
         [
             Input("dropdown-gene-composition", "value"),
-            Input("dropdown-kmer-motifs", "value"),
+            Input("dropdown-kmer-options", "value"),
             Input("repeat-len-slider", "value"),
             Input("kmer_mode", "value"),
             Input("stored-df", "data"),
         ],
     )
     def update_kmer_composition(
-        selected_gene, kmer_sort, length_range, kmer_mode, stored_df
+        selected_gene, kmer_options, length_range, kmer_mode, stored_df
     ):
         if len(stored_df) == 0:
             kmer_df = kmers[selected_gene]
@@ -629,16 +654,8 @@ def main():
             repeat_df=filtered_df,
             mode=kmer_mode,
             length_range=length_range,
-            sort_by=kmer_sort,
+            kmer_options=kmer_options,
         )
-
-    # when the mode is not "raw" the dropdown for kmer-motifs should be disabled
-    @app.callback(
-        Output("dropdown-kmer-motifs", "disabled"),
-        Input("kmer_mode", "value"),
-    )
-    def disable_kmer_motifs_dropdown(mode):
-        return mode != "raw"
 
     @app.callback(
         Output("repeat-len-slider", "min"),
@@ -650,13 +667,6 @@ def main():
         return floor(kmers[selected_gene]["length"].min()), ceil(
             kmers[selected_gene]["length"].max()
         )
-
-    @app.callback(
-        Output("dropdown-kmer-motifs", "options"),
-        Input("dropdown-gene-composition", "value"),
-    )
-    def update_kmer_motifs_options(selected_gene):
-        return [i for i in kmers[selected_gene].columns if i != "length"]
 
     @app.callback(
         Output("strip-plot-log-store", "data"),
