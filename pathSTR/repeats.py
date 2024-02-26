@@ -3,10 +3,7 @@ import pandas as pd
 
 class Repeats(object):
     def __init__(self, bed=None, df=None):
-        if df is not None:
-            self.df = df
-        else:
-            self.df = self.get_repeat_info()
+        self.df = self.get_repeat_info()
 
     def get_repeat_info(self):
         """
@@ -18,6 +15,7 @@ class Repeats(object):
         bed = pd.read_csv(
             url, sep="\t", header=None, names=["chrom", "start", "end", "info"]
         )
+        bed["reflen"] = bed["end"] - bed["start"]
         # isolating the id to match up with the repeat info csv that is downloaded from STRchive
         bed["id"] = bed["info"].apply(
             lambda x: [i for i in x.split(";") if i.startswith("ID=")][0].replace(
@@ -55,7 +53,7 @@ class Repeats(object):
         bed["id"] = (
             bed["chrom"] + ":" + bed["start"].astype(str) + "-" + bed["end"].astype(str)
         )
-        return bed.drop(columns=["info", "chrom", "start", "end"]).set_index("id")
+        return bed.set_index("id")
 
     @staticmethod
     def fix_name(name):
@@ -78,3 +76,6 @@ class Repeats(object):
 
     def pathogenic_min_length(self, gene):
         return self.df.loc[self.df["name"] == gene, "pathogenic_min"].values[0]
+
+    def reflen(self, gene):
+        return self.df.loc[self.df["name"] == gene, "reflen"].values[0]
