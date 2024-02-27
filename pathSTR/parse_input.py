@@ -55,12 +55,19 @@ def parse_input(vcf_list, sample_info, repeats):
 
 
 def parse_vcf(vcf, repeats):
+    """
+    Parse a VCF file and return a list of calls
+    The chromosome and position are used to get the gene from the repeats object
+    If necessary, the chromosome is prefixed with "chr"
+    Positions are matched exactly, so the bed file for genotyping should be the same as the one used for the repeats object here
+    """
     calls = []
     name = os.path.basename(vcf).replace(".vcf.gz", "")
     for v in VCF(vcf):
-        gene = repeats.gene(f"{v.CHROM}:{str(v.POS)}-{str(v.end)}")
+        chrom = v.CHROM if v.CHROM.startswith("chr") else "chr" + v.CHROM
+        gene = repeats.gene(f"{chrom}:{str(v.POS)}-{str(v.end)}")
         if gene is None:
-            print(f"Skipping {v.CHROM}:{str(v.POS)}-{str(v.end)} - not in bed file.")
+            print(f"Skipping {chrom}:{str(v.POS)}-{str(v.end)} - not in bed file.")
             continue
         full_lengths = v.INFO.get("FRB")
         ref_diff = v.INFO.get("RB")
@@ -68,7 +75,7 @@ def parse_vcf(vcf, repeats):
         sequences = parse_alts(v.ALT, v.genotypes[0])
         calls.append(
             (
-                v.CHROM,
+                chrom,
                 gene,
                 name,
                 "Allele1",
