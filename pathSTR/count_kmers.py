@@ -6,6 +6,8 @@ import logging
 def parse_kmers(df, repeats, gene):
     kmers_extracted = []
     gene_df = df[df["gene"] == gene]
+    if len(gene_df) == 0:
+        return pd.DataFrame()
     motif_length = repeats.motif_length(gene)
     known_motifs = repeats.motifs(gene)
     for sample, allele, seq in gene_df[["sample", "allele", "sequence"]].itertuples(
@@ -22,6 +24,7 @@ def parse_kmers(df, repeats, gene):
                     }
                 )
                 kmers_extracted.append(kmers),
+    print(f"Kmers extracted: {kmers_extracted}")
     return (
         pd.DataFrame(kmers_extracted)
         .set_index("identifier")
