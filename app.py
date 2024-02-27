@@ -124,34 +124,46 @@ def main():
                                         value=gene_options[0]["value"],
                                         clearable=False,
                                     ),
-                                    dcc.Checklist(
-                                        id="violin_options",
-                                        options=[
-                                            {
-                                                "label": "Split by population",
-                                                "value": "population",
-                                            },
-                                            {"label": "Split by sex", "value": "sex"},
-                                            {
-                                                "label": "Show repeat length relative to reference genome",
-                                                "value": "ref_diff",
-                                            },
-                                            {
-                                                "label": "Show log-transformed length",
-                                                "value": "log",
-                                            },
-                                            {
-                                                "label": "Show pathogenic length",
-                                                "value": "pathlen",
-                                            },
-                                            {
-                                                "label": "Show density",
-                                                "value": "density",
-                                            },
-                                        ],
-                                        value=["density"],
-                                        inline=True,
-                                        inputStyle={"margin-left": "15px"},
+                                    dbc.Row(
+                                        [
+                                            dbc.Col(
+                                                dcc.Checklist(
+                                                    id="violin_options",
+                                                    options=[
+                                                        {
+                                                            "label": "Split by population",
+                                                            "value": "population",
+                                                        },
+                                                        {
+                                                            "label": "Split by sex",
+                                                            "value": "sex",
+                                                        },
+                                                        {
+                                                            "label": "Show repeat length relative to reference genome",
+                                                            "value": "ref_diff",
+                                                        },
+                                                        {
+                                                            "label": "Show log-transformed length",
+                                                            "value": "log",
+                                                        },
+                                                        {
+                                                            "label": "Show pathogenic length",
+                                                            "value": "pathlen",
+                                                        },
+                                                        {
+                                                            "label": "Show density",
+                                                            "value": "density",
+                                                        },
+                                                    ],
+                                                    value=["density"],
+                                                    inline=True,
+                                                    inputStyle={"margin-left": "15px"},
+                                                )
+                                            ),
+                                            dbc.Col(
+                                                html.Div(id="warning-pathogenic-length")
+                                            ),
+                                        ]
                                     ),
                                 ]
                             ),
@@ -311,7 +323,7 @@ def main():
                         ],
                     ),
                     dcc.Tab(
-                        label="Your data",
+                        label="Upload your data",
                         children=[
                             dcc.Store(id="stored-df"),
                             dcc.Upload(
@@ -319,7 +331,9 @@ def main():
                                 children=html.Div(
                                     [
                                         "Drag and drop or ",
-                                        html.A("click to upload STRdust VCF.gz files"),
+                                        html.A(
+                                            "click to upload STRdust VCF.gz files (hg38)"
+                                        ),
                                         " to show your data in the plots",
                                     ]
                                 ),
@@ -490,6 +504,19 @@ def main():
                                     ),
                                     dcc.Download(id="download"),
                                     dcc.Download(id="download-zip"),
+                                    # adding a checkbox for making 'publication-ready figures'
+                                    dcc.Checklist(
+                                        id="publication-ready",
+                                        options=[
+                                            {
+                                                "label": "Publication-ready figures",
+                                                "value": "publication-ready",
+                                            }
+                                        ],
+                                        value=[],
+                                        inline=True,
+                                        inputStyle={"margin-left": "15px"},
+                                    ),
                                 ],
                             ),
                         ],
@@ -557,25 +584,46 @@ def main():
     #         return value_other
 
     @app.callback(
-        Output("violin-plot", "figure"),
+        [
+            Output("violin-plot", "figure"),
+            Output("warning-pathogenic-length", "children"),
+        ],
         [
             Input("dropdown-gene-length", "value"),
             Input("stored-df", "data"),
             Input("violin_options", "value"),
+            Input("publication-ready", "value"),
         ],
     )
-    def update_violin(selected_gene, stored_df, violin_options):
+    def update_violin(selected_gene, stored_df, violin_options, publication_ready):
         if stored_df is None:
             filtered_df = df[df["gene"] == selected_gene]
         else:
             stored_df = pd.DataFrame(stored_df)
             combined_df = pd.concat([df, stored_df], ignore_index=True)
             filtered_df = combined_df[combined_df["gene"] == selected_gene]
-        return plot.violin_plot(
-            filtered_df,
-            repeats=repeats,  # show optionally the pathogenic length
-            selected_gene=selected_gene,
-            violin_options=violin_options,
+        warning = (
+            html.P(
+                "Interpret the pathogenic length with caution and always take repeat composition into account.",
+                style={
+                    "color": "red",
+                    "fontSize": 14,
+                    "fontStyle": "italic",
+                    "margin-left": 15,
+                },
+            )
+            if "pathlen" in violin_options
+            else ""
+        )
+        return (
+            plot.violin_plot(
+                filtered_df,
+                repeats=repeats,  # show optionally the pathogenic length
+                selected_gene=selected_gene,
+                violin_options=violin_options,
+                publication_ready="publication-ready" in publication_ready,
+            ),
+            warning,
         )
 
     @app.callback(
@@ -584,9 +632,12 @@ def main():
             Input("dropdown-gene-length", "value"),
             Input("stored-df", "data"),
             Input("violin_options", "value"),
+            Input("publication-ready", "value"),
         ],
     )
-    def update_length_scatter(selected_gene, stored_df, violin_options):
+    def update_length_scatter(
+        selected_gene, stored_df, violin_options, publication_ready
+    ):
         if stored_df is None:
             filtered_df = df[df["gene"] == selected_gene]
         else:
@@ -597,6 +648,7 @@ def main():
             filtered_df,
             path_length=repeats.pathogenic_min_length(selected_gene),  # optional
             violin_options=violin_options,
+            publication_ready="publication-ready" in publication_ready,
         )
 
     # change the settings for the kmer dropdown based on the mode
@@ -635,10 +687,11 @@ def main():
             Input("repeat-len-slider", "value"),
             Input("kmer_mode", "value"),
             Input("stored-df", "data"),
+            Input("publication-ready", "value"),
         ],
     )
     def update_kmer_composition(
-        selected_gene, kmer_options, length_range, kmer_mode, stored_df
+        selected_gene, kmer_options, length_range, kmer_mode, stored_df, publication_ready
     ):
         if len(stored_df) == 0:
             kmer_df = kmers[selected_gene]
@@ -655,6 +708,7 @@ def main():
             mode=kmer_mode,
             length_range=length_range,
             kmer_options=kmer_options,
+            publication_ready="publication-ready" in publication_ready,
         )
 
     @app.callback(

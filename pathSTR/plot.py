@@ -4,9 +4,12 @@ from pathSTR.count_kmers import parse_kmers
 from plotly.subplots import make_subplots
 from math import ceil, log10
 import plotly.graph_objects as go
+import plotly
 
 
-def violin_plot(filtered_df, repeats, selected_gene, violin_options=None):
+def violin_plot(
+    filtered_df, repeats, selected_gene, violin_options=None, publication_ready=False
+):
     if "density" in violin_options:
         fig = px.violin(
             filtered_df,
@@ -58,10 +61,24 @@ def violin_plot(filtered_df, repeats, selected_gene, violin_options=None):
             else:
                 fig.update_layout(yaxis_range=[1, ceil(path_length * 1.1)])
         fig.add_hline(y=path_length, line_dash="dot", line_color="red")
+    if publication_ready:
+        fig.update_layout(
+            font=dict(size=16),
+            legend=dict(
+                title_font=dict(size=16),
+                font=dict(size=16),
+            ),
+            plot_bgcolor="white",
+            width=800,
+            height=800,
+        )
+        fig.update_traces(marker=dict(size=5, opacity=0.5))
     return fig
 
 
-def length_scatter(filtered_df, path_length=None, violin_options=None):
+def length_scatter(
+    filtered_df, path_length=None, violin_options=None, publication_ready=False
+):
     pivot_df = filtered_df.pivot(
         index="sample",
         columns="allele",
@@ -176,6 +193,21 @@ def length_scatter(filtered_df, path_length=None, violin_options=None):
         # use a white background
         plot_bgcolor="rgba(0, 0, 0, 0)",
     )
+
+    if publication_ready:
+        fig.update_layout(
+            font=dict(size=16),
+            legend=dict(
+                title_font=dict(size=16),
+                font=dict(size=16),
+            ),
+            plot_bgcolor="white",
+            width=800,
+            height=800,
+        )
+        for trace in fig.data:
+            if type(trace) == plotly.graph_objs.scatter:
+                trace.marker.update(dict(size=6, opacity=0.5))
     return fig
 
 
@@ -202,7 +234,12 @@ def create_strip_plot(strip_df, log=False):
 
 
 def kmer_plot(
-    kmer_df, repeat_df, mode="collapsed", length_range=None, kmer_options=None
+    kmer_df,
+    repeat_df,
+    mode="collapsed",
+    length_range=None,
+    kmer_options=None,
+    publication_ready=False,
 ):
     """
     Create plots of kmers found in the repeat sequences.
@@ -257,7 +294,7 @@ def kmer_plot(
                         y="identifier",
                         color="Frequency",
                     ),
-                    color_continuous_scale="Blues",
+                    color_continuous_scale=[(0, "white"), (1, "darkblue")],
                 ).data[0],
                 row=1,
                 col=i + 1,
@@ -277,6 +314,17 @@ def kmer_plot(
             )
         )
         fig.update_coloraxes(colorscale="Blues")
+        if publication_ready:
+            fig.update_layout(
+                font=dict(size=16),
+                legend=dict(
+                    title_font=dict(size=16),
+                    font=dict(size=16),
+                ),
+                plot_bgcolor="white",
+                width=800,
+                height=800,
+            )
         return fig
     elif mode == "collapsed":
         # kmers are thrown out faster
@@ -338,14 +386,28 @@ def kmer_plot(
         fig.update_yaxes(visible=False, showticklabels=False)
         fig.update_layout(
             {
-                "plot_bgcolor": "rgba(0, 0, 0, 0)",
-                "paper_bgcolor": "rgba(0, 0, 0, 0)",
+                "plot_bgcolor": "white",
+                "paper_bgcolor": "white",
                 "height": 1200,
                 "width": 1200,
             }
         )
-        fig["layout"]["xaxis2"].update(title="Number of carriers in group")
-        fig.update_coloraxes(colorscale="Blues")
+
+        fig["layout"]["xaxis2"].update(title="Number of carriers")
+        fig.update_coloraxes(colorscale=[(0, "white"), (1, "darkblue")])
+        if publication_ready:
+            fig.update_layout(
+                font=dict(size=16),
+                legend=dict(
+                    title_font=dict(size=16),
+                    font=dict(size=16),
+                ),
+                plot_bgcolor="white",
+                width=800,
+                height=800,
+            )
+            # increase font size of axis labels
+            fig.update_xaxes(tickfont_size=12)
         return fig
     elif mode == "sequence":
         # using only the 10 most frequent kmers by limiting kmer_df to the first 10 columns
@@ -371,7 +433,6 @@ def kmer_plot(
         if length_range:
             min_length = length_range[0]
             max_length = length_range[1]
-            print(f"{min_length=}, {max_length=}")
             repeat_df = (
                 repeat_df[
                     repeat_df["length"].between(
@@ -434,6 +495,15 @@ def kmer_plot(
             # in the sequence mode, the kmer_options indicates the alignment of the plot relative to the x-axis
             if kmer_options == "right-to-left":
                 fig.update_layout(xaxis_autorange="reversed")
+        if publication_ready:
+            fig.update_layout(
+                font=dict(size=16),
+                legend=dict(
+                    title_font=dict(size=16),
+                    font=dict(size=16),
+                ),
+                plot_bgcolor="white",
+            )
         return fig
     else:
         sys.stderr.write("Invalid mode for kmer plot\n")
