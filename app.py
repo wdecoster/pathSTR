@@ -939,7 +939,7 @@ def main():
 
     app.title = "pathSTR"
     # Run the app
-    app.run(debug=args.debug)
+    app.run(host=args.host, port=args.port, debug=args.debug)
 
 
 def get_args():
@@ -962,6 +962,8 @@ def get_args():
         help="Run the app in debug mode",
         action="store_true",
     )
+    parser.add_argument("--host", help="Host IP used to serve the application", default="127.0.0.1")
+    parser.add_argument("--port", help="Port used to serve the application", default=8050, type=int)
     return parser.parse_args()
 
 
