@@ -433,12 +433,12 @@ def main():
                                                 href="https://www.medrxiv.org/content/10.1101/2023.12.20.23300308v1",
                                                 target="_blank",
                                             ),
-                                            " and ",
-                                            html.A(
-                                                "Gustafson et al. 2024",
-                                                href="https://github.com/wdecoster/STRdust",
-                                                target="_blank",
-                                            ),
+                                            # " and ",
+                                            # html.A(
+                                            #     "Gustafson et al. 2024",
+                                            #     href="https://github.com/wdecoster/STRdust",
+                                            #     target="_blank",
+                                            # ),
                                             ".",
                                         ]
                                     ),
@@ -691,7 +691,12 @@ def main():
         ],
     )
     def update_kmer_composition(
-        selected_gene, kmer_options, length_range, kmer_mode, stored_df, publication_ready
+        selected_gene,
+        kmer_options,
+        length_range,
+        kmer_mode,
+        stored_df,
+        publication_ready,
     ):
         if len(stored_df) == 0:
             kmer_df = kmers[selected_gene]
