@@ -172,7 +172,7 @@ def stats(df):
     return df.groupby("gene")["length"].agg(["mean", "std"]).round(1)
 
 
-def get_composition(df, gene, repeats):
-    """Calculate the composition of the dataset"""
-    motifs = repeats.motifs(gene)
-    df = df[df["gene"] == gene].drop(columns=["chrom", "length", "ref_diff"])
+# def get_composition(df, gene, repeats):
+#     """Calculate the composition of the dataset"""
+#     motifs = repeats.motifs(gene)
+#     df = df[df["gene"] == gene].drop(columns=["chrom", "length", "ref_diff"])
