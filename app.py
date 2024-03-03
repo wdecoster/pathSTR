@@ -399,13 +399,13 @@ def main():
                                             "The source code is available on ",
                                             html.A(
                                                 "GitHub",
-                                                href="https://github.com/wdecoster/pathSTR-1000G",
+                                                href="https://github.com/wdecoster/pathSTR",
                                                 target="_blank",
                                             ),
                                             ". Feedback is welcome in the form of an ",
                                             html.A(
                                                 "issue on GitHub",
-                                                href="https://github.com/wdecoster/pathSTR-1000G/issues",
+                                                href="https://github.com/wdecoster/pathSTR/issues",
                                                 target="_blank",
                                             ),
                                             " or by sending me an email.",
@@ -424,7 +424,7 @@ def main():
                                             "If this resource is useful to you, please cite our ",
                                             html.A(
                                                 "publication",
-                                                href="https://github.com/wdecoster/pathSTR-1000G",
+                                                href="https://github.com/wdecoster/pathSTR",
                                                 target="_blank",
                                             ),
                                             ", as well as the references to the underlying datasets: ",
