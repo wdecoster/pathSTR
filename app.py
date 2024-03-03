@@ -458,6 +458,18 @@ def main():
                                 ],
                                 style={"width": "80%", "margin": "auto"},
                             ),
+                            dcc.Checklist(
+                                        id="publication-ready",
+                                        options=[
+                                            {
+                                                "label": "Publication-ready figures",
+                                                "value": "publication-ready",
+                                            }
+                                        ],
+                                        value=[],
+                                        inline=True,
+                                        inputStyle={"margin-left": "15px"},
+                                    ),
                             html.H1("Downloads"),
                             html.Div(
                                 [
@@ -505,20 +517,16 @@ def main():
                                     dcc.Download(id="download"),
                                     dcc.Download(id="download-zip"),
                                     # adding a checkbox for making 'publication-ready figures'
-                                    dcc.Checklist(
-                                        id="publication-ready",
-                                        options=[
-                                            {
-                                                "label": "Publication-ready figures",
-                                                "value": "publication-ready",
-                                            }
-                                        ],
-                                        value=[],
-                                        inline=True,
-                                        inputStyle={"margin-left": "15px"},
-                                    ),
                                 ],
                             ),
+                            html.H1("Repeats"),
+                            html.Div([
+                                html.P("Repeats used in this app are obtained from STRchive, genotyped for the coordinates below:"),
+                                html.Div(
+                                dash_table.DataTable(repeats.df[["chrom", "start", "end"]].to_dict('records'), [{"name": i, "id": i} for i in ["chrom", "start", "end"]],
+                                                     
+                                ), style={"width": "50px", "margin-right": "auto", "margin-left": 0, "align": "left", "textAlign": "left"}),  
+                            ],),
                         ],
                     ),
                 ]
@@ -646,6 +654,7 @@ def main():
             filtered_df = combined_df[combined_df["gene"] == selected_gene]
         return plot.length_scatter(
             filtered_df,
+            selected_gene,
             path_length=repeats.pathogenic_min_length(selected_gene),  # optional
             violin_options=violin_options,
             publication_ready="publication-ready" in publication_ready,
@@ -710,6 +719,7 @@ def main():
         return plot.kmer_plot(
             kmer_df,
             repeat_df=filtered_df,
+            selected_gene=selected_gene,
             mode=kmer_mode,
             length_range=length_range,
             kmer_options=kmer_options,

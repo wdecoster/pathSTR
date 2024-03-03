@@ -38,7 +38,7 @@ def violin_plot(
             if "log" in violin_options
             else "Repeat length [units]"
         ),
-        title_text=f"Repeat length distribution for {selected_gene}",
+        title_text=f"Length distribution of {selected_gene} repeat",
     )
     if filtered_df["Group"].nunique() > 1 and "sex" not in violin_options:
         fig.update_layout(legend_title_text="Group")
@@ -77,7 +77,7 @@ def violin_plot(
 
 
 def length_scatter(
-    filtered_df, path_length=None, violin_options=None, publication_ready=False
+    filtered_df, selected_gene, path_length=None, violin_options=None, publication_ready=False
 ):
     pivot_df = filtered_df.pivot(
         index="sample",
@@ -136,6 +136,7 @@ def length_scatter(
             "ref_diff_longest",
             "ref_diff_shortest",
         ],
+        title=f"Lengths per allele of {selected_gene} repeat",
     )
     fig.update_traces(marker=dict(size=3))
     if "density" in violin_options:
@@ -236,6 +237,7 @@ def create_strip_plot(strip_df, log=False):
 def kmer_plot(
     kmer_df,
     repeat_df,
+    selected_gene,
     mode="collapsed",
     length_range=None,
     kmer_options=None,
@@ -307,6 +309,7 @@ def kmer_plot(
 
         fig.update_layout(
             dict(
+                title_text=f"Kmer frequency for {selected_gene} repeat",
                 plot_bgcolor="rgba(0, 0, 0, 0)",
                 paper_bgcolor="rgba(0, 0, 0, 0)",
                 height=height,
@@ -386,6 +389,7 @@ def kmer_plot(
         fig.update_yaxes(visible=False, showticklabels=False)
         fig.update_layout(
             {
+                "title_text": f"Kmer frequency for {selected_gene} repeat",
                 "plot_bgcolor": "white",
                 "paper_bgcolor": "white",
                 "height": 1200,
@@ -427,7 +431,7 @@ def kmer_plot(
         kmer_dict = {k: c for k, c in zip(kmer_df.columns[:10], colors)}
         inverse_dict = {v: k for k, v in kmer_dict.items()}
         inverse_dict["rgb(128, 128, 128)"] = "other"
-        motif_length = len(kmer_df.columns[0])
+
         # for the alt sequence of every individual,
         # plot the order of the 10 most frequent kmers, with others in grey
         if length_range:
@@ -487,6 +491,7 @@ def kmer_plot(
                 "identifier": "Sample/allele",
             },
             category_orders={"identifier": repeat_df["identifier"][::-1]},
+            title=f"Sequence of {selected_gene} repeat",
         )
         fig.update_traces(marker=dict(size=3))
         # make the y axis labels a bit smaller
