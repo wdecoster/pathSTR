@@ -98,13 +98,26 @@ def main():
                         label="Overview",
                         children=[
                             html.H1("Overview", style={"bottommargin": "0px"}),
-                            dcc.Store(id="strip-plot-log-store"),
+                            html.Img(src=dash.get_asset_url('overview-strip.png')),
+                            # add a checkbox for making the strip plot dynamic
+                            dcc.Checklist(
+                                id="strip-dynamic",
+                                options=[
+                                    {
+                                        "label": "Dynamic strip plot",
+                                        "value": "dynamic",
+                                    }
+                                ],
+                                value=[],
+                                inline=True,
+                                inputStyle={"margin-left": "15px"},
+                            ),
                             dcc.Loading(
                                 id="loading-strip-2",
                                 type="cube",
                                 children=[
                                     html.Div(
-                                        dcc.Graph(id="strip-plot-log"),
+                                        id="strip-plot-log-container",
                                         style={"margin": "0px"},
                                     ),
                                 ],
@@ -738,22 +751,18 @@ def main():
         )
 
     @app.callback(
-        Output("strip-plot-log-store", "data"),
-        Input("stored-df", "data"),
+        Output("strip-plot-log-container", "children"),
+        [Input("stored-df", "data"), Input("strip-dynamic", "value")],
     )
-    def update_stripplot(stored_df):
-        if stored_df is None:
-            return plot.create_strip_plot(df, log=True)
+    def update_stripplot(stored_df, dynamic):
+        if dynamic:
+            if stored_df is None:
+                return dcc.Graph(id="strip-plot-log", figure=plot.create_strip_plot(df, log=True))
+            else:
+                strip_df = pd.concat([df, pd.DataFrame(stored_df)], ignore_index=True)
+                return dcc.Graph(id="strip-plot-log", figure=plot.create_strip_plot(strip_df, log=True))
         else:
-            strip_df = pd.concat([df, pd.DataFrame(stored_df)], ignore_index=True)
-            return plot.create_strip_plot(strip_df, log=True)
-
-    @app.callback(
-        Output("strip-plot-log", "figure"),
-        Input("strip-plot-log-store", "data"),
-    )
-    def update_strip_plot_from_store(strip_log_data):
-        return strip_log_data
+            dash.no_update
 
     @app.callback(
         [
