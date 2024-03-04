@@ -88,3 +88,6 @@ class Repeats(object):
     
     def chrom(self, gene):
         return self.df.loc[self.df["name"] == gene, "chrom"].values[0]
+    
+    def coords(self, gene):
+        return self.df.loc[self.df["name"] == gene, ["chrom", "start", "end"]].values[0]
