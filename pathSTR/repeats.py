@@ -79,3 +79,12 @@ class Repeats(object):
 
     def reflen(self, gene):
         return self.df.loc[self.df["name"] == gene, "reflen"].values[0]
+
+    def start(self, gene):
+        return self.df.loc[self.df["name"] == gene, "start"].values[0]
+    
+    def end(self, gene):
+        return self.df.loc[self.df["name"] == gene, "end"].values[0]
+    
+    def chrom(self, gene):
+        return self.df.loc[self.df["name"] == gene, "chrom"].values[0]

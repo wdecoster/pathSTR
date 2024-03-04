@@ -551,6 +551,9 @@ def main():
         Output("download", "data"), Input("btn", "n_clicks"), prevent_initial_call=True
     )
     def generate_csv(n_clicks):
+        """
+        Enable users to download the data as a TSV file
+        """
         return dcc.send_data_frame(df.to_csv, "pathSTR-1000G.tsv")
 
     @app.callback(
@@ -560,6 +563,9 @@ def main():
         State("upload-data", "last_modified"),
     )
     def store_uploaded_data(list_of_contents, list_of_filenames, list_of_dates):
+        """
+        Process the uploaded user-VCF files
+        """
         if list_of_contents is not None:
             dfs = [
                 parse.parse_uploaded_vcf(content, filename, repeats)
@@ -582,27 +588,6 @@ def main():
         else:
             return pd.DataFrame(()).to_dict("records"), ""
 
-    # @app.callback(
-    #     Output("dropdown-gene-composition", "value"),
-    #     Input("dropdown-gene-length", "value"),
-    #     State("dropdown-gene-composition", "value"),
-    # )
-    # def update_gene_composition_dropdown(value_other, value_current):
-    #     if value_current == value_other:
-    #         return dash.no_update
-    #     else:
-    #         return value_other
-
-    # @app.callback(
-    #     Output("dropdown-gene-length", "value"),
-    #     Input("dropdown-gene-composition", "value"),
-    #     State("dropdown-gene-length", "value"),
-    # )
-    # def update_gene_length_dropdown(value_other, value_current):
-    #     if value_current == value_other:
-    #         return dash.no_update
-    #     else:
-    #         return value_other
 
     @app.callback(
         [
@@ -617,6 +602,9 @@ def main():
         ],
     )
     def update_violin(selected_gene, stored_df, violin_options, publication_ready):
+        """
+        Create repeat length violin plot
+        """
         if stored_df is None:
             filtered_df = df[df["gene"] == selected_gene]
         else:
@@ -659,6 +647,9 @@ def main():
     def update_length_scatter(
         selected_gene, stored_df, violin_options, publication_ready
     ):
+        """
+        Create repeat length scatter plot
+        """
         if stored_df is None:
             filtered_df = df[df["gene"] == selected_gene]
         else:
@@ -683,7 +674,10 @@ def main():
         ],
         [Input("kmer_mode", "value"), Input("dropdown-gene-composition", "value")],
     )
-    def disable_kmer_motifs_dropdown(mode, selected_gene):
+    def tweak_kmer_options(mode, selected_gene):
+        """
+        Depending on the kmer mode, set the options for the kmer dropdown
+        """
         if mode == "raw":
             multi = True
             options = [i for i in kmers[selected_gene].columns if i != "length"]
@@ -720,10 +714,18 @@ def main():
         stored_df,
         publication_ready,
     ):
+        """
+        Create a kmer composition plot
+        :param selected_gene: gene to show the kmer composition for
+        :param kmer_options: mode-specific options for the kmer composition plot
+        :param length_range: minimal and maximal length of the repeats to show
+        :param kmer_mode: mode to show the kmer composition plot in (raw, collapsed or sequence)
+        :param stored_df: uploaded data
+        :param publication_ready: whether to show a publication-ready plot
+        """
         if len(stored_df) == 0:
             kmer_df = kmers[selected_gene]
         else:
-            # I am not too sure if this part with user data is going to work - especially if the axis to concatenate on is correct
             stored_df = pd.DataFrame(stored_df)
             kmer_df = pd.concat(
                 [kmers[selected_gene], parse_kmers(stored_df, repeats, selected_gene)]
@@ -755,6 +757,12 @@ def main():
         [Input("stored-df", "data"), Input("strip-dynamic", "value")],
     )
     def update_stripplot(stored_df, dynamic):
+        """
+        Create a strip plot of the repeat lengths
+        By default, only a static image is shown
+        If the dynamic checkbox is checked, the plot is updated with the uploaded data
+        This makes the app quite a bit faster
+        """
         if dynamic:
             if stored_df is None:
                 return dcc.Graph(id="strip-plot-log", figure=plot.create_strip_plot(df, log=True))
@@ -776,13 +784,16 @@ def main():
         ],
     )
     def update_details_table(individuals, gene):
+        """
+        Update the details table based on the selected individual and gene
+        """
         if not individuals:
             return (
                 dash.no_update,
                 dash.no_update,
                 dash.no_update,
             )
-        if isinstance(individuals, str):
+        if isinstance(individuals, str): # if only one individual is selected, it is not a list
             individuals = [individuals]
 
         detail_df = (
@@ -825,34 +836,20 @@ def main():
         ],
     )
     def return_igv(n_clicks, individuals, gene):
+        """
+        When the button is clicked, show the IGV plot for the selected individual and gene
+        """
         if n_clicks is not None:
             if not individuals:
                 return html.Div()
             if isinstance(individuals, str):
                 individuals = [individuals]
-            locus = repeats.gene_to_coords(gene)
-            # Would be slightly more elegant to be able to get those values from the repeats object
-            # but this will do for now
-            # need the values separately to slightly extend the locus for better visualization
-            chrom = locus.split(":")[0]
-            start, end = [int(i) for i in locus.split(":")[1].split("-")]
+            chrom, start, end = repeats.coords(gene)
             return html.Div(
                 [
                     dashbio.Igv(
                         id="igv",
                         genome="hg38_1kg",
-                        # reference={
-                        #     "id": "hg38",
-                        #     "name": "Human (GRCh38/hg38)",
-                        #     "fastaURL": "https://ftp.1000genomes.ebi.ac.uk/vol1/ftp/data_collections/1KG_ONT_VIENNA/reference/1KG_ONT_VIENNA_hg38.fa.gz",
-                        #     "tracks": [
-                        #         {
-                        #             "name": "Refseq Genes",
-                        #             "url": "https://s3.amazonaws.com/igv.org.genomes/hg38/refGene.txt.gz",
-                        #             "indexed": False,
-                        #         }
-                        #     ],
-                        # },
                         locus=f"{chrom}:{start-25}-{end+25}",
                         tracks=(
                             [
@@ -948,7 +945,6 @@ def main():
                 "1000G std",
             ]
         ]
-        # user_df.to_csv("pathSTR-1000G-user-data.tsv", sep="\t")
         # make numeric columns numeric in the datatable
         columns = [
             (
