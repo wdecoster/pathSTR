@@ -300,30 +300,39 @@ def main():
                                                 ]
                                             ),
                                         ]
-                                    )
+                                    ),
+                                    dbc.Row(
+                                        [
+                                            dbc.Col(
+                                                [
+                                     dash_table.DataTable(
+                                            id="details-table",
+                                            style_cell={
+                                                "fontSize": 14,
+                                                "font-family": "sans-serif",
+                                                "textAlign": "left",
+                                                "overflow": "hidden",
+                                                "textOverflow": "ellipsis",
+                                                "minWidth": "180px",
+                                                "width": "180px",
+                                                "maxWidth": "180px",
+                                            },
+                                            style_header={
+                                                "backgroundColor": "white",
+                                                "fontWeight": "bold",
+                                                "font-family": "sans-serif",
+                                                "fontSize": 18,
+                                            },
+                                            tooltip_duration=None,
+                                        ),
+                                    ],
+                                    ),
+                                    ],
+                                    className="py-4",
+                                    ),
                                 ]
                             ),
-                            dash_table.DataTable(
-                                id="details-table",
-                                style_cell={
-                                    "fontSize": 14,
-                                    "font-family": "sans-serif",
-                                    "textAlign": "left",
-                                    "overflow": "hidden",
-                                    "textOverflow": "ellipsis",
-                                    "minWidth": "180px",
-                                    "width": "180px",
-                                    "maxWidth": "180px",
-                                },
-                                style_header={
-                                    "backgroundColor": "white",
-                                    "fontWeight": "bold",
-                                    "font-family": "sans-serif",
-                                    "fontSize": 18,
-                                },
-                                # style_table={"overflowX": "auto"},
-                                tooltip_duration=None,
-                            ),
+                           
                             dbc.Button(
                                 "Show in IGV",
                                 id="igv-button",
@@ -338,6 +347,7 @@ def main():
                     dcc.Tab(
                         label="Upload your data",
                         children=[
+                            html.H1("Upload your data"),
                             dcc.Store(id="stored-df"),
                             dcc.Upload(
                                 id="upload-data",
@@ -483,7 +493,7 @@ def main():
                                         inline=True,
                                         inputStyle={"margin-left": "15px"},
                                     ),
-                            html.H1("Downloads"),
+                            html.H1("Downloads", className="my-3"),
                             html.Div(
                                 [
                                     html.Div(
@@ -491,35 +501,12 @@ def main():
                                             html.Button(
                                                 "Download Data as TSV",
                                                 id="btn",
-                                                style={
-                                                    "backgroundColor": "#86888a",  # background color
-                                                    "border": "none",  # remove border
-                                                    "color": "white",  # text color
-                                                    "padding": "15px 32px",  # padding
-                                                    "textAlign": "center",  # center text
-                                                    "textDecoration": "none",  # remove underline
-                                                    "fontSize": "16px",  # font size
-                                                    "margin": "4px 2px",  # margin
-                                                    "cursor": "pointer",  # cursor style
-                                                    "borderRadius": "12px",  # rounded corners
-                                                    "marginRight": "10px",
-                                                },
+                                                className="btn btn-primary btn-lg",
                                             ),
                                             html.Button(
                                                 "Download STRdust VCFs",
                                                 id="download-zip-button",
-                                                style={
-                                                    "backgroundColor": "#86888a",  # background color
-                                                    "border": "none",  # remove border
-                                                    "color": "white",  # text color
-                                                    "padding": "15px 32px",  # padding
-                                                    "textAlign": "center",  # center text
-                                                    "textDecoration": "none",  # remove underline
-                                                    "fontSize": "16px",  # font size
-                                                    "margin": "4px 2px",  # margin
-                                                    "cursor": "pointer",  # cursor style
-                                                    "borderRadius": "12px",  # rounded corners
-                                                },
+                                                className="btn btn-success btn-lg mx-3",
                                             ),
                                         ],
                                         style={
@@ -532,13 +519,14 @@ def main():
                                     # adding a checkbox for making 'publication-ready figures'
                                 ],
                             ),
-                            html.H1("Repeats"),
+                            html.H1("Repeats", className="my-3"),
                             html.Div([
                                 html.P("Repeats used in this app are obtained from STRchive, genotyped for the coordinates below:"),
                                 html.Div(
                                 dash_table.DataTable(repeats.df[["chrom", "start", "end"]].to_dict('records'), [{"name": i, "id": i} for i in ["chrom", "start", "end"]],
                                                      
-                                ), style={"width": "50px", "margin-right": "auto", "margin-left": 0, "align": "left", "textAlign": "left"}),  
+                                ), className="table",
+                                  ),  
                             ],),
                         ],
                     ),
