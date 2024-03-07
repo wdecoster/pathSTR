@@ -74,7 +74,7 @@ def main():
     if args.store_only:
         return
     # Create Dash app
-    app = Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
+    app = Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP], external_scripts=["//stat.bioinf.be/count.js"])
     # Define app layout
     gene_options = [
         {"label": gene, "value": gene} for gene in sorted(df["gene"].unique().tolist())
