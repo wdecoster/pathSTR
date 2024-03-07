@@ -471,7 +471,7 @@ def main():
                                             "The repeat coordinates and motifs used in this app are obtained from ",
                                             html.A(
                                                 "STRchive",
-                                                href="https://strhive.com/",
+                                                href="https://harrietdashnow.com/STRchive/",
                                                 target="_blank",
                                             ),
                                             ". Other dependencies are Python and the Dash/plotly, pandas, hdf5 and cyvcf2 modules for the web app, and snakemake to orchestrate the variant calling.",
