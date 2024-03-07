@@ -72,7 +72,7 @@ class Repeats(object):
         """
         Return the length of the longest motif
         """
-        sorted([len(m) for m in motifs], reverse=True)[0]
+        return sorted([len(m) for m in motifs], reverse=True)[0]
 
     def motif_length(self, gene):
         return self.df.loc[self.df["name"] == gene, "motif_length"].values[0]
