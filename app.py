@@ -11,6 +11,7 @@ from argparse import ArgumentParser
 import pathSTR.parse_input as parse
 from pathSTR.repeats import Repeats
 import pathSTR.plot as plot
+from pathSTR.version import __version__
 from pathSTR.count_kmers import parse_kmers
 import os
 import sys
@@ -418,7 +419,7 @@ def main():
                                 [
                                     html.P(
                                         [
-                                            "This web app was developed by Wouter De Coster. ",
+                                            f"This web app was developed by Wouter De Coster. The current version is v{__version__}. ",
                                             "The source code is available on ",
                                             html.A(
                                                 "GitHub",
