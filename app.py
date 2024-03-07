@@ -525,7 +525,7 @@ def main():
                                 html.Div(
                                 dash_table.DataTable(repeats.df[["chrom", "start", "end"]].to_dict('records'), [{"name": i, "id": i} for i in ["chrom", "start", "end"]],
                                                      
-                                ), className="table",
+                                ), className="table", style={"width": "30%", "margin": "auto"},
                                   ),  
                             ],),
                         ],
