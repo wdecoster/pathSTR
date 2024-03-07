@@ -69,8 +69,8 @@ def parse_vcf(vcf, repeats):
         if gene is None:
             print(f"Skipping {chrom}:{str(v.POS)}-{str(v.end)} - not in bed file.")
             continue
-        full_lengths = v.INFO.get("FRB")
-        ref_diff = v.INFO.get("RB")
+        full_lengths = v.INFO.get("FRB") if v.INFO.get("FRB") else v.format("FRB")[0]
+        ref_diff = v.INFO.get("RB") if v.INFO.get("RB") else v.format("RB")[0]
         support = v.format("SUP")[0]
         sequences = parse_alts(v.ALT, v.genotypes[0])
         calls.append(
