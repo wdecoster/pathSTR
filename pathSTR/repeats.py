@@ -8,8 +8,11 @@ class Repeats(object):
     def get_repeat_info(self):
         """
         This function parses a bed file as obtained from STRchive, which is intended for TRGT, but also works for STRdust.
-        In the future, perhaps this bed file will be downloaded straight from the STRchive github page.
-        For now a CSV is downloaded, with extra information about the repeats.
+        Also a CSV is downloaded, with extra information about the repeats.
+        A dataframe is constructed, which is the data underlying the Repeats class instance
+        
+        The motif length that is used for e.g. kmer plots is the longest motif, which may have undesired consequences. 
+        But the shortest or random choice also was a bad thing, e.g. for FXN. 
         """
         url = "https://raw.githubusercontent.com/hdashnow/STRchive/main/data/hg38.STRchive-disease-loci.TRGT.bed"
         bed = pd.read_csv(
@@ -41,14 +44,8 @@ class Repeats(object):
             ][0].replace("ID=", "")
         )
         # extracting the motifs and their length based on the bed info field
-        bed["motifs"] = bed["info"].apply(
-            lambda x: [
-                i.replace("MOTIFS=", "").split(",")
-                for i in x.split(";")
-                if i.startswith("MOTIFS=")
-            ][0]
-        )
-        bed["motif_length"] = bed["motifs"].apply(lambda x: len(x[0]))
+        bed["motifs"] = bed["info"].apply(self.get_motifs)
+        bed["motif_length"] = bed["motifs"].apply(self.get_longest_motif_length)
         # currently overwriting the id field of the table, but it would make more sense to have a more descriptive column name, e.g. "coords"
         bed["id"] = (
             bed["chrom"] + ":" + bed["start"].astype(str) + "-" + bed["end"].astype(str)
@@ -58,6 +55,24 @@ class Repeats(object):
     @staticmethod
     def fix_name(name):
         return f"{name.split('_')[1]}_{name.split('_')[0]}"
+    
+    @staticmethod
+    def get_motifs(info):
+        """
+        For every info field from the bed file, get the value at the MOTIFS key
+        """
+        return [
+                i.replace("MOTIFS=", "").split(",")
+                for i in info.split(";")
+                if i.startswith("MOTIFS=")
+            ][0]
+
+    @staticmethod
+    def get_longest_motif_length(motifs):
+        """
+        Return the length of the longest motif
+        """
+        sorted([len(m) for m in motifs], reverse=True)[0]
 
     def motif_length(self, gene):
         return self.df.loc[self.df["name"] == gene, "motif_length"].values[0]
