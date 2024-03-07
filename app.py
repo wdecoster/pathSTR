@@ -419,7 +419,7 @@ def main():
                                 [
                                     html.P(
                                         [
-                                            f"This web app was developed by Wouter De Coster. The current version is v{__version__}. ",
+                                            f"This web app is developed and maintained by Wouter De Coster. The hosting and deployment is arranged by Svenn D'Hert, as well as some nice layout fixes. The current version is v{__version__}. ",
                                             "The source code is available on ",
                                             html.A(
                                                 "GitHub",
