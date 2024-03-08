@@ -77,7 +77,11 @@ def violin_plot(
 
 
 def length_scatter(
-    filtered_df, selected_gene, path_length=None, violin_options=None, publication_ready=False
+    filtered_df,
+    selected_gene,
+    path_length=None,
+    violin_options=None,
+    publication_ready=False,
 ):
     pivot_df = filtered_df.pivot(
         index="sample",
@@ -99,6 +103,14 @@ def length_scatter(
             }
         )
         .reset_index()
+        .astype(  # cast object to float to avoid futurewarning with fillna causing a downcast
+            {
+                "length_Allele1": "float64",
+                "length_Allele2": "float64",
+                "ref_diff_Allele1": "float64",
+                "ref_diff_Allele2": "float64",
+            }
+        )
         .fillna(  # fill NaNs with 0 for the scatter plot of males on chrX
             {
                 "ref_diff_Allele1": 0,
@@ -463,8 +475,15 @@ def kmer_plot(
         )
         # remove the last semicolon
         repeat_df["seq_colored"] = repeat_df["seq_colored"].str.rstrip(";")
-        # split the seq_colored into a list
-        repeat_df["seq_colored"] = repeat_df["seq_colored"].str.split(";")
+        if kmer_options and kmer_options == "right-to-left":
+            # in the sequence mode, the kmer_options indicates the alignment of the plot relative to the x-axis
+            # split the seq_colored into a list and reverse the list of colors
+            repeat_df["seq_colored"] = (
+                repeat_df["seq_colored"].str.split(";").apply(lambda x: x[::-1])
+            )
+        else:
+            # split the seq_colored into a list
+            repeat_df["seq_colored"] = repeat_df["seq_colored"].str.split(";")
         # add a range column to the dataframe, to enumerate the nucleotides
         repeat_df["range"] = repeat_df["seq_colored"].apply(
             lambda x: list(range(len(x)))
@@ -500,6 +519,12 @@ def kmer_plot(
             # in the sequence mode, the kmer_options indicates the alignment of the plot relative to the x-axis
             if kmer_options == "right-to-left":
                 fig.update_layout(xaxis_autorange="reversed")
+        # set the height of the plot depending on the number of samples
+        # but this leads to weird things (plot points shifting up?!) so is disabled for now
+        # fig.update_layout(
+        #     height=max(len(repeat_df) * 10, 500),
+        #     width=1200,
+        # )
         if publication_ready:
             fig.update_layout(
                 font=dict(size=16),
@@ -507,7 +532,8 @@ def kmer_plot(
                     title_font=dict(size=16),
                     font=dict(size=16),
                 ),
-                plot_bgcolor="white",
+                plot_bgcolor="rgba(0, 0, 0, 0)",
+                paper_bgcolor="rgba(0, 0, 0, 0)",
             )
         return fig
     else:
