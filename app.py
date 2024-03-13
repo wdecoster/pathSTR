@@ -99,7 +99,7 @@ def main():
                         label="Overview",
                         children=[
                             html.H1("Overview", style={"bottommargin": "0px"}),
-                            html.Img(src=dash.get_asset_url('overview-strip.png')),
+                            html.Img(src=dash.get_asset_url("overview-strip.png")),
                             # add a checkbox for making the strip plot dynamic
                             dcc.Checklist(
                                 id="strip-dynamic",
@@ -306,34 +306,33 @@ def main():
                                         [
                                             dbc.Col(
                                                 [
-                                     dash_table.DataTable(
-                                            id="details-table",
-                                            style_cell={
-                                                "fontSize": 14,
-                                                "font-family": "sans-serif",
-                                                "textAlign": "left",
-                                                "overflow": "hidden",
-                                                "textOverflow": "ellipsis",
-                                                "minWidth": "180px",
-                                                "width": "180px",
-                                                "maxWidth": "180px",
-                                            },
-                                            style_header={
-                                                "backgroundColor": "white",
-                                                "fontWeight": "bold",
-                                                "font-family": "sans-serif",
-                                                "fontSize": 18,
-                                            },
-                                            tooltip_duration=None,
-                                        ),
-                                    ],
-                                    ),
-                                    ],
-                                    className="py-4",
+                                                    dash_table.DataTable(
+                                                        id="details-table",
+                                                        style_cell={
+                                                            "fontSize": 14,
+                                                            "font-family": "sans-serif",
+                                                            "textAlign": "left",
+                                                            "overflow": "hidden",
+                                                            "textOverflow": "ellipsis",
+                                                            "minWidth": "180px",
+                                                            "width": "180px",
+                                                            "maxWidth": "180px",
+                                                        },
+                                                        style_header={
+                                                            "backgroundColor": "white",
+                                                            "fontWeight": "bold",
+                                                            "font-family": "sans-serif",
+                                                            "fontSize": 18,
+                                                        },
+                                                        tooltip_duration=None,
+                                                    ),
+                                                ],
+                                            ),
+                                        ],
+                                        className="py-4",
                                     ),
                                 ]
                             ),
-                           
                             dbc.Button(
                                 "Show in IGV",
                                 id="igv-button",
@@ -483,17 +482,17 @@ def main():
                                 style={"width": "80%", "margin": "auto"},
                             ),
                             dcc.Checklist(
-                                        id="publication-ready",
-                                        options=[
-                                            {
-                                                "label": "Publication-ready figures",
-                                                "value": "publication-ready",
-                                            }
-                                        ],
-                                        value=[],
-                                        inline=True,
-                                        inputStyle={"margin-left": "15px"},
-                                    ),
+                                id="publication-ready",
+                                options=[
+                                    {
+                                        "label": "Publication-ready figures",
+                                        "value": "publication-ready",
+                                    }
+                                ],
+                                value=[],
+                                inline=True,
+                                inputStyle={"margin-left": "15px"},
+                            ),
                             html.H1("Downloads", className="my-3"),
                             html.Div(
                                 [
@@ -521,14 +520,26 @@ def main():
                                 ],
                             ),
                             html.H1("Repeats", className="my-3"),
-                            html.Div([
-                                html.P("Repeats used in this app are obtained from STRchive, genotyped for the coordinates below:"),
-                                html.Div(
-                                dash_table.DataTable(repeats.df[["chrom", "start", "end"]].to_dict('records'), [{"name": i, "id": i} for i in ["chrom", "start", "end"]],
-                                                     
-                                ), className="table", style={"width": "30%", "margin": "auto"},
-                                  ),  
-                            ],),
+                            html.Div(
+                                [
+                                    html.P(
+                                        "Repeats used in this app are obtained from STRchive, genotyped for the coordinates below:"
+                                    ),
+                                    html.Div(
+                                        dash_table.DataTable(
+                                            repeats.df[
+                                                ["chrom", "start", "end"]
+                                            ].to_dict("records"),
+                                            [
+                                                {"name": i, "id": i}
+                                                for i in ["chrom", "start", "end"]
+                                            ],
+                                        ),
+                                        className="table",
+                                        style={"width": "30%", "margin": "auto"},
+                                    ),
+                                ],
+                            ),
                         ],
                     ),
                 ]
@@ -543,7 +554,7 @@ def main():
         """
         Enable users to download the data as a TSV file
         """
-        return dcc.send_data_frame(df.to_csv, "pathSTR-1000G.tsv")
+        return dcc.send_data_frame(df.to_csv, "pathSTR-1000G.tsv", sep="\t")
 
     @app.callback(
         [Output("stored-df", "data"), Output("upload-status", "children")],
@@ -576,7 +587,6 @@ def main():
             return uploaded_df.to_dict("records"), f"Uploaded {len(dfs)} file{plural}"
         else:
             return pd.DataFrame(()).to_dict("records"), ""
-
 
     @app.callback(
         [
@@ -754,10 +764,15 @@ def main():
         """
         if dynamic:
             if stored_df is None:
-                return dcc.Graph(id="strip-plot-log", figure=plot.create_strip_plot(df, log=True))
+                return dcc.Graph(
+                    id="strip-plot-log", figure=plot.create_strip_plot(df, log=True)
+                )
             else:
                 strip_df = pd.concat([df, pd.DataFrame(stored_df)], ignore_index=True)
-                return dcc.Graph(id="strip-plot-log", figure=plot.create_strip_plot(strip_df, log=True))
+                return dcc.Graph(
+                    id="strip-plot-log",
+                    figure=plot.create_strip_plot(strip_df, log=True),
+                )
         else:
             dash.no_update
 
@@ -782,7 +797,9 @@ def main():
                 dash.no_update,
                 dash.no_update,
             )
-        if isinstance(individuals, str): # if only one individual is selected, it is not a list
+        if isinstance(
+            individuals, str
+        ):  # if only one individual is selected, it is not a list
             individuals = [individuals]
 
         detail_df = (
@@ -971,8 +988,12 @@ def get_args():
         help="Run the app in debug mode",
         action="store_true",
     )
-    parser.add_argument("--host", help="Host IP used to serve the application", default="127.0.0.1")
-    parser.add_argument("--port", help="Port used to serve the application", default=8050, type=int)
+    parser.add_argument(
+        "--host", help="Host IP used to serve the application", default="127.0.0.1"
+    )
+    parser.add_argument(
+        "--port", help="Port used to serve the application", default=8050, type=int
+    )
     return parser.parse_args()
 
 
