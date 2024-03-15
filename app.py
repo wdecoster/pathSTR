@@ -447,7 +447,7 @@ def main():
                                             "If this resource is useful to you, please cite our ",
                                             html.A(
                                                 "publication",
-                                                href="https://github.com/wdecoster/pathSTR",
+                                                href="https://www.medrxiv.org/content/10.1101/2024.03.06.24303700v1/",
                                                 target="_blank",
                                             ),
                                             ", as well as the references to the underlying datasets: ",
