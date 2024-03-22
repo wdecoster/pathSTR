@@ -10,9 +10,9 @@ class Repeats(object):
         This function parses a bed file as obtained from STRchive, which is intended for TRGT, but also works for STRdust.
         Also a CSV is downloaded, with extra information about the repeats.
         A dataframe is constructed, which is the data underlying the Repeats class instance
-        
-        The motif length that is used for e.g. kmer plots is the longest motif, which may have undesired consequences. 
-        But the shortest or random choice also was a bad thing, e.g. for FXN. 
+
+        The motif length that is used for e.g. kmer plots is the longest motif, which may have undesired consequences.
+        But the shortest or random choice also was a bad thing, e.g. for FXN.
         """
         url = "https://raw.githubusercontent.com/hdashnow/STRchive/main/data/hg38.STRchive-disease-loci.TRGT.bed"
         bed = pd.read_csv(
@@ -28,7 +28,7 @@ class Repeats(object):
         # download the csv file from STRchive, and join it with the bed file to get the pathogenic_min length column
         bed = bed.join(
             pd.read_csv(
-                "https://raw.githubusercontent.com/hdashnow/STRchive/main/data/STR-disease-loci.csv",
+                "https://raw.githubusercontent.com/hdashnow/STRchive/main/data/STRchive-database.csv",
                 usecols=["id", "pathogenic_min"],
             ).set_index("id"),
             on="id",
@@ -55,17 +55,17 @@ class Repeats(object):
     @staticmethod
     def fix_name(name):
         return f"{name.split('_')[1]}_{name.split('_')[0]}"
-    
+
     @staticmethod
     def get_motifs(info):
         """
         For every info field from the bed file, get the value at the MOTIFS key
         """
         return [
-                i.replace("MOTIFS=", "").split(",")
-                for i in info.split(";")
-                if i.startswith("MOTIFS=")
-            ][0]
+            i.replace("MOTIFS=", "").split(",")
+            for i in info.split(";")
+            if i.startswith("MOTIFS=")
+        ][0]
 
     @staticmethod
     def get_longest_motif_length(motifs):
@@ -97,12 +97,12 @@ class Repeats(object):
 
     def start(self, gene):
         return self.df.loc[self.df["name"] == gene, "start"].values[0]
-    
+
     def end(self, gene):
         return self.df.loc[self.df["name"] == gene, "end"].values[0]
-    
+
     def chrom(self, gene):
         return self.df.loc[self.df["name"] == gene, "chrom"].values[0]
-    
+
     def coords(self, gene):
         return self.df.loc[self.df["name"] == gene, ["chrom", "start", "end"]].values[0]
