@@ -124,47 +124,51 @@ def parse_uploaded_vcf(contents, filename, repeats):
     # write the decoded file to a temporary file
     # make sure the file ends with .gz and is gzipped
     # and read it back in using cyvcf2
-    if filename.endswith(".gz"):
-        tempfile = os.path.join("/tmp", os.path.basename(filename))
-        with open(tempfile, "wb") as f:
-            f.write(decoded)
-    else:
-        tempfile = os.path.join("/tmp", os.path.basename(filename) + ".gz")
-        with gzip.open(tempfile, "wb") as f:
-            f.write(decoded)
+
     try:
+        if filename.endswith(".gz"):
+            tempfile = os.path.join("/tmp", os.path.basename(filename))
+            with open(tempfile, "wb") as f:
+                f.write(decoded)
+        else:
+            tempfile = os.path.join("/tmp", os.path.basename(filename) + ".gz")
+            with gzip.open(tempfile, "wb") as f:
+                f.write(decoded)
         calls = parse_vcf(tempfile, repeats)
     except OSError:
         # this happens when the file is not a VCF, or malformed
         os.remove(tempfile)
         return None
-    df = pd.DataFrame(
-        calls,
-        columns=[
-            "chrom",
-            "gene",
-            "sample",
-            "allele",
-            "length",
-            "ref_diff",
-            "sequence",
-            "support",
-        ],
-    )
-    # for every repeat in the dataframe, divide the length and ref_diff by the motif length
-    df["length"] = df.apply(
-        lambda x: round(x["length"] / repeats.motif_length(x["gene"]), 2),
-        axis=1,
-    )
-    df["ref_diff"] = df.apply(
-        lambda x: round(x["ref_diff"] / repeats.motif_length(x["gene"]), 2),
-        axis=1,
-    )
-    df["Group"] = "Uploaded"
-    df["Superpopulation"] = "Uploaded"
-    df["Sex"] = "Uploaded"
-    os.remove(tempfile)
-    return df
+    else:
+        df = pd.DataFrame(
+            calls,
+            columns=[
+                "chrom",
+                "gene",
+                "sample",
+                "allele",
+                "length",
+                "ref_diff",
+                "sequence",
+                "support",
+            ],
+        )
+        # for every repeat in the dataframe, divide the length and ref_diff by the motif length
+        df["length"] = df.apply(
+            lambda x: round(x["length"] / repeats.motif_length(x["gene"]), 2),
+            axis=1,
+        )
+        df["ref_diff"] = df.apply(
+            lambda x: round(x["ref_diff"] / repeats.motif_length(x["gene"]), 2),
+            axis=1,
+        )
+        df["Group"] = "Uploaded"
+        df["Superpopulation"] = "Uploaded"
+        df["Sex"] = "Uploaded"
+        return df
+    finally:
+        if os.path.isfile(tempfile):
+            os.remove(tempfile)
 
 
 def stats(df):
