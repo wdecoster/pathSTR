@@ -4,6 +4,7 @@ import os
 import gzip
 import base64
 from cyvcf2 import VCF
+from uuid import uuid4
 
 
 def parse_input(vcf_list, sample_info, repeats):
@@ -118,20 +119,21 @@ def flatten(it):
     return chain.from_iterable(it)
 
 
-def parse_uploaded_vcf(contents, filename, repeats):
-    content_type, content_string = contents.split(",")
+def parse_uploaded_vcf(contents, uploaded_filename, repeats):
+    _, content_string = contents.split(",")
     decoded = base64.b64decode(content_string)
     # write the decoded file to a temporary file
     # make sure the file ends with .gz and is gzipped
     # and read it back in using cyvcf2
 
     try:
-        if filename.endswith(".gz"):
-            tempfile = os.path.join("/tmp", os.path.basename(filename))
+        temp_filename = f"{uuid4()}.vcf"
+        if uploaded_filename.endswith(".gz"):
+            tempfile = os.path.join("/tmp", os.path.basename(temp_filename))
             with open(tempfile, "wb") as f:
                 f.write(decoded)
         else:
-            tempfile = os.path.join("/tmp", os.path.basename(filename) + ".gz")
+            tempfile = os.path.join("/tmp", os.path.basename(temp_filename) + ".gz")
             with gzip.open(tempfile, "wb") as f:
                 f.write(decoded)
         calls = parse_vcf(tempfile, repeats)
