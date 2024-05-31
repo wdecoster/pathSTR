@@ -14,10 +14,17 @@ samples_vienna = pd.read_table(
     names=["filename"],
 )
 samples_vienna_ftp = (
-    "https://ftp.1000genomes.ebi.ac.uk/vol1/ftp/data_collections/1KG_ONT_VIENNA/hg38/"
+    "https://ftp.1000genomes.ebi.ac.uk/vol1/ftp/data_collections/1KG_ONT_VIENNA/"
 )
 samples_vienna["sample"] = samples_vienna["filename"].str.replace(".hg38.cram", "")
-samples_vienna["path"] = samples_vienna_ftp + samples_vienna["filename"].astype(str)
+samples_vienna["hg38_path"] = (
+    samples_vienna_ftp + "hg38/" + samples_vienna["filename"].astype(str)
+)
+samples_vienna["t2t_path"] = (
+    samples_vienna_ftp
+    + "t2t/"
+    + samples_vienna["filename"].str.replace(".hg38.", ".t2t.").astype(str)
+)
 
 # MILLER
 
@@ -34,7 +41,7 @@ ref = "/home/wdecoster/database/1KG_ONT_VIENNA_hg38.fa"
 
 
 def get_path(wildcards):
-    return samples.loc[wildcards.sample, "path"]
+    return samples.loc[wildcards.sample, f"{wildcards.build}_path"]
 
 
 def get_haploid_chroms(wildcards):
@@ -48,7 +55,14 @@ def get_haploid_chroms(wildcards):
 rule all:
     input:
         strdust=expand(
-            os.path.join(outdir, "pathSTR_STRdust/{sample}.vcf.gz"),
+            os.path.join(outdir, "pathSTR_STRdust/{build}/{sample}.vcf.gz"),
+            sample=samples.index,
+            build=["t2t", "hg38"],
+        ),
+        strdust_random=expand(
+            os.path.join(
+                outdir, "pathSTR_STRdust_random_repeats/hg38/{sample}.vcf.gz"
+            ),
             sample=samples.index,
         ),
         length_vs_yield=os.path.join(outdir, "plots/length_vs_yield.html"),
@@ -60,9 +74,9 @@ rule all:
 
 rule strdust_unphased:
     output:
-        os.path.join(outdir, "pathSTR_STRdust/{sample}.vcf.gz"),
+        os.path.join(outdir, "pathSTR_STRdust/{build}/{sample}.vcf.gz"),
     log:
-        "logs/pathSTR_STRdust/{sample}.log",
+        "logs/pathSTR_STRdust/{build}/{sample}.log",
     params:
         cram=get_path,
         ref=ref,
@@ -85,11 +99,37 @@ rule strdust_unphased:
         """
 
 
+rule strdust_unphased_repeats:
+    output:
+        os.path.join(outdir, "pathSTR_STRdust_random_repeats/{build}/{sample}.vcf.gz"),
+    log:
+        "logs/pathSTR_STRdust_random_repeats/{build}/{sample}.log",
+    params:
+        cram=get_path,
+        ref=ref,
+        targets="/home/wdecoster/pathSTR-1000G/data/random-simple-repeats.bed",
+        binary="/home/wdecoster/repositories/STRdust/target/release/STRdust",
+    conda:
+        "/home/wdecoster/p200/1000G/envs/samtools.yml"
+    shell:
+        """RUST_LOG=debug {params.binary} \
+        -R {params.targets} \
+        --support 2 \
+        --unphased \
+        --find-outliers \
+        --somatic \
+        --threads 1 \
+        {params.ref} \
+        {params.cram} 2> {log} \
+        | bgzip > {output} 2>> {log}
+        """
+
+
 rule cramino:
     output:
-        os.path.join(outdir, "cramino/{sample}.cramino"),
+        os.path.join(outdir, "cramino/{build}/{sample}.cramino"),
     log:
-        "logs/cramino/{sample}.log",
+        "logs/cramino/{build}/{sample}.log",
     params:
         cram=get_path,
         ref=ref,
@@ -100,9 +140,11 @@ rule cramino:
 
 rule cramino_gather:
     input:
-        expand(os.path.join(outdir, "cramino/{sample}.cramino"), sample=samples.index),
+        expand(
+            os.path.join(outdir, "cramino/hg38/{sample}.cramino"), sample=samples.index
+        ),
     output:
-        os.path.join(outdir, "cramino/cramino_all.tsv"),
+        os.path.join(outdir, "cramino/hg38/cramino_all.tsv"),
     log:
         "logs/cramino_gather.log",
     conda:
@@ -115,7 +157,7 @@ rule cramino_gather:
 
 rule plot_length_vs_yield:
     input:
-        os.path.join(outdir, "cramino/cramino_all.tsv"),
+        os.path.join(outdir, "cramino/hg38/cramino_all.tsv"),
     output:
         os.path.join(outdir, "plots/length_vs_yield.html"),
     log:
@@ -149,7 +191,7 @@ rule copy_good_samples:
 
 rule plot_sex_check:
     input:
-        os.path.join(outdir, "cramino/cramino_all.tsv"),
+        os.path.join(outdir, "cramino/hg38/cramino_all.tsv"),
     output:
         os.path.join(outdir, "plots/sex_check.html"),
     log:
