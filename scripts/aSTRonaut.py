@@ -8,49 +8,77 @@ from collections import Counter
 from cyvcf2 import VCF
 from itertools import chain
 import os
+import sys
+
 
 def main():
     args = get_args()
-    df = parse_input(args.vcf, args.repeat)
+    df = parse_input(args)
+    if args.sampleinfo:
+        sampleinfo = (
+            pd.read_table(args.sampleinfo, usecols=["name", "group"])
+            .rename(columns={"name": "sample"})
+            .set_index("sample")
+        )
+        # verify that 'case' is a value in the 'group' column
+        if "case" not in sampleinfo["group"].unique():
+            sys.stderr.write(
+                "ERROR: 'case' is not a value in the 'group' column of the sample info file!\n"
+            )
+            sys.exit(1)
+        df = df.join(sampleinfo, how="left")
+        # add a 'case' column which is 1 if the sample is a case and 0 otherwise
+        df["case"] = 0
+        df.loc[df["group"] == "case", "case"] = 1
+    else:
+        # if no sample info is provided, all samples are considered controls
+        # and no annotation is added to the plot
+        df["case"] = 0
     with open(args.out, "w") as out:
         for repeat in df["coords"].unique():
             repeat_df = df[df["coords"] == repeat]
-            kmer_df = parse_kmers(repeat_df, args.kmer)
-            plot_sequence(repeat_df, kmer_df, repeat).write_html(out)        
+            # Either use the motifs as specified by the user, or select the <number> most frequent kmers
+            # with args.motifs the kmer length is ignored
+            # if kmers are specified as argument, the kmers are sorted by length
+            # so the longest kmers are plotted first, to accomodate for overlapping kmers
+            kmers = (
+                sorted(args.motifs.split(","), key=lambda x: len(x), reverse=True)
+                if args.motifs
+                else select_kmers(repeat_df, args.kmer, args.number)
+            )
+            plot_sequence(repeat_df, kmers, repeat, args).write_html(out)
 
-def plot_sequence(repeat_df, kmer_df, repeat):
+
+def plot_sequence(repeat_df, kmers, repeat, args):
     """
     Plot the sequence composition of a repeat
     assign a color to each kmer
-    using only the 10 most frequent kmers by limiting kmer_df to the first 10 columns
+    using only the <number> most frequent kmers by limiting kmer_df to the first <number> columns, assuming it is sorted by column sum
     :param repeat_df: dataframe with the repeat sequences
-    :param kmer_df: dataframe with the kmer counts
+    :param kmers: list of kmers to plot
     :param repeat: coordinates of the repeat
     """
-    colors = [
-        "rgb(31, 119, 180)",
-        "rgb(255, 127, 14)",
-        "rgb(44, 160, 44)",
-        "rgb(214, 39, 40)",
-        "rgb(148, 103, 189)",
-        "rgb(140, 86, 75)",
-        "rgb(227, 119, 194)",
-        "rgb(127, 127, 127)",
-        "rgb(188, 189, 34)",
-        "rgb(23, 190, 207)",
-    ]
-    kmer_dict = {k: c for k, c in zip(kmer_df.columns[:10], colors)}
+    if len(kmers) > 10:
+        colors = [hex_to_rgb(c) for c in px.colors.qualitative.Light24]
+        if len(kmers) > len(colors):
+            sys.stderr.write("WARNING: Not enough colors defined!\n\n")
+    else:
+        colors = px.colors.qualitative.Safe
+    kmer_dict = {k: c for k, c in zip(kmers, colors)}
     inverse_dict = {v: k for k, v in kmer_dict.items()}
     inverse_dict["rgb(128, 128, 128)"] = "other"
-    repeat_df = repeat_df.dropna(subset=["sequence"]).sort_values(by="sequence", key = lambda x: x.str.len())
+
+    repeat_df = repeat_df.dropna(subset=["sequence"]).sort_values(
+        by="sequence", key=lambda x: x.str.len()
+    )
     # draw a scatter plot showing for each sample and allele the order of the kmers in the sequence
-    # replace in the sequence from frequent to less frequent the kmers with their color
+    # replace in the sequence the kmers with their color
     repeat_df["seq_colored"] = repeat_df["sequence"]
     for k, c in kmer_dict.items():
         repeat_df["seq_colored"] = repeat_df["seq_colored"].str.replace(
             k, f"{c};" * len(k)
         )
-    # replace the remaining nucleotides with grey
+    # replace the remaining nucleotides with black
     repeat_df["seq_colored"] = repeat_df["seq_colored"].str.replace(
         r"[ACTG]", "rgb(128, 128, 128);", regex=True
     )
@@ -59,15 +87,13 @@ def plot_sequence(repeat_df, kmer_df, repeat):
     # split the seq_colored into a list
     repeat_df["seq_colored"] = repeat_df["seq_colored"].str.split(";")
     # add a range column to the dataframe, to enumerate the nucleotides
-    repeat_df["range"] = repeat_df["seq_colored"].apply(
-        lambda x: list(range(len(x)))
-    )
+    repeat_df["range"] = repeat_df["seq_colored"].apply(lambda x: list(range(len(x))))
     repeat_df["identifier"] = repeat_df["sample"] + "_" + repeat_df["allele"]
     # explode the seq_colored and range columns for plotting
     repeat_colors = repeat_df[
         ["identifier", "sequence", "seq_colored", "range"]
     ].explode(["seq_colored", "range"])
-    # convert colors back to kmers
+    # convert colors back to kmers, for the legend and hoverdata
     repeat_colors["kmer"] = repeat_colors["seq_colored"].apply(
         lambda x: inverse_dict[x]
     )
@@ -83,14 +109,57 @@ def plot_sequence(repeat_df, kmer_df, repeat):
             "range": "Nucleotide position in repeat",
             "identifier": "Sample/allele",
         },
-        title=f"Repeat {repeat}",
+        title=f"Repeat at {repeat}",
         category_orders={"identifier": repeat_df["identifier"][::-1]},
     )
+
     fig.update_traces(marker=dict(size=3))
-    fig.update_yaxes(tickfont_size=8)
+    fig.update_xaxes(tickfont_size=20)
+    if args.hide_labels:
+        fig.update_yaxes(showticklabels=False)
+    else:
+        fig.update_yaxes(tickfont_size=8)
+    fig.update_layout(legend_traceorder="reversed")
+
+    # add an annotation in front of the case samples, only with --sampleinfo
+    for _, row in repeat_df.iterrows():
+        if row["case"]:
+            fig.add_annotation(
+                x=0,
+                y=row["identifier"],
+                text=">>>",
+                showarrow=False,
+                xshift=-20,
+                font=dict(size=8),
+            )
+    if args.publication:
+        fig.update_layout(
+            plot_bgcolor="rgba(0, 0, 0, 0)",
+            paper_bgcolor="rgba(0, 0, 0, 0)",
+            font=dict(size=16),
+            title=args.title,
+        )
+        fig.update_xaxes(showline=True, linewidth=2, linecolor="black", mirror=True)
+        fig.update_yaxes(showline=True, linewidth=2, linecolor="black", mirror=True)
+        fig.update_layout(
+            legend=dict(yanchor="bottom", y=0.05, xanchor="right", x=0.99)
+        )
     return fig
 
-def parse_kmers(repeat_df, motif_length):
+
+def hex_to_rgb(hex):
+    hex = hex.lstrip("#")
+    tup = tuple(int(hex[i : i + 2], 16) for i in (0, 2, 4))
+    return f"rgb{tup}"
+
+
+def select_kmers(repeat_df, motif_length, number=10):
+    """
+    Function to select the <number> most frequent kmers from the repeat sequences
+    :param repeat_df: dataframe with the repeat sequences
+    :param motif_length: length of the kmers to count
+    :param number: number of kmers to plot
+    """
     kmers_extracted = []
     for sample, allele, seq in repeat_df[["sample", "allele", "sequence"]].itertuples(
         index=False, name=None
@@ -105,13 +174,17 @@ def parse_kmers(repeat_df, motif_length):
                     }
                 )
                 kmers_extracted.append(kmers),
-    return (
+    kmer_df = (
         pd.DataFrame(kmers_extracted)
         .set_index("identifier")
         .astype(float)
         .fillna(0.0)
         .round(2)
     )
+    # sort the kmer_dfs columns by column sum
+    kmer_df = kmer_df[kmer_df.sum().sort_values(ascending=False).index]
+    # ignoring the 'length' column, return the <number> most frequent kmers
+    return [k for k in kmer_df.columns if k != "length"][:number]
 
 
 def count_kmers(seq, k):
@@ -151,28 +224,29 @@ def prune_counts(kmers):
     total_kmers = sum(pruned.values())
     return {k: v / total_kmers for k, v in pruned.items()}
 
-def parse_input(vcf_list, repeat):
+
+def parse_input(args):
     """
-    Parse the VCF files and return a dataframe
+    Parse the VCF files and return a dataframe, containing the coordinates, sample name, allele and repeat sequence
     :param vcf_list: list of VCF files to parse
     :param repeat: coordinates of the repeat to extract, or None if all have to be extracted
     """
     # read in the VCFs
-    calls = [parse_vcf(vcf, repeat) for vcf in vcf_list]
+    calls = [parse_vcf(vcf, args.repeat, args.minlen) for vcf in args.vcf]
     # make a dataframe and join with the sample info
     df = pd.DataFrame(
-            flatten(calls),
-            columns=[
-                "coords",
-                "sample",
-                "allele",
-                "sequence",
-            ],
-        ).set_index("sample", drop=False)
+        flatten(calls),
+        columns=[
+            "coords",
+            "sample",
+            "allele",
+            "sequence",
+        ],
+    ).set_index("sample", drop=False)
     return df
 
 
-def parse_vcf(vcf, repeat=None):
+def parse_vcf(vcf, repeat=None, minlen=20):
     """
     Parse a VCF file and return a list of sequences
     :param vcf: path to the VCF file
@@ -185,8 +259,10 @@ def parse_vcf(vcf, repeat=None):
         if repeat and coords != repeat:
             continue
         sequences = parse_alts(v.ALT, v.genotypes[0])
-        calls.append((coords, name, "Allele1", sequences[0]))
-        calls.append((coords, name, "Allele2", sequences[1]))
+        if sequences[0] and len(sequences[0]) > minlen:
+            calls.append((coords, name, "Allele1", sequences[0]))
+        if sequences[1] and len(sequences[1]) > minlen:
+            calls.append((coords, name, "Allele2", sequences[1]))
     return calls
 
 
@@ -208,14 +284,55 @@ def flatten(it):
     return chain.from_iterable(it)
 
 
-
 def get_args():
-    parser = ArgumentParser(description="Create a repeat sequence plot similar to the pathSTR <sequence> composition vizualization, but stand-alone")
+    parser = ArgumentParser(
+        description="Create a repeat sequence plot similar to the pathSTR <sequence> composition vizualization, but stand-alone"
+    )
     parser.add_argument("vcf", help="VCF files to analyze", nargs="+")
-    parser.add_argument("-k", "--kmer", help="Kmer length to use for plot", default=3, type=int)
-    parser.add_argument("--repeat", help="Chromosome and POS of repeat to plot e.g. chr1:12345", default=None)
-    parser.add_argument("-o", "--out", help="Output file name", default="reptor.html")
+    parser.add_argument(
+        "-k",
+        "--kmer",
+        help="Kmer length to use for plot, ignored with --motifs",
+        default=3,
+        type=int,
+    )
+    parser.add_argument(
+        "-n",
+        "--number",
+        help="Number of kmers to plot, ignored with --motifs",
+        default=10,
+        type=int,
+    )
+    parser.add_argument(
+        "--motifs",
+        help="Manually specify the motifs to plot, comma separated",
+        default=None,
+    )
+    parser.add_argument(
+        "--repeat",
+        help="Chromosome and POS of repeat to plot from VCF e.g. chr1:12345, default: all repeats",
+        default=None,
+    )
+    parser.add_argument(
+        "-o", "--out", help="Output file name (html)", default="astronaut.html"
+    )
+    parser.add_argument(
+        "-m", "--minlen", help="Minimal allele length to plot", default=20, type=int
+    )
+    parser.add_argument("--hide-labels", help="Hide sample labels", action="store_true")
+    parser.add_argument(
+        "--publication",
+        help="Create a plot suitable for publication",
+        action="store_true",
+    )
+    parser.add_argument(
+        "--title", help="Title of the plot", default="Repeat composition"
+    )
+    parser.add_argument(
+        "--sampleinfo", help="TSV file with sample information", default=None
+    )
     return parser.parse_args()
+
 
 if __name__ == "__main__":
     main()
