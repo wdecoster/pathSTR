@@ -40,6 +40,13 @@ outdir = "/home/wdecoster/pathSTR-1000G"
 ref = "/home/wdecoster/database/1KG_ONT_VIENNA_hg38.fa"
 
 
+def get_ref(wildcards):
+    return {
+        "hg38": "/home/wdecoster/database/1KG_ONT_VIENNA_hg38.fa",
+        "t2t": "/home/wdecoster/database/1KG_ONT_VIENNA_t2t.fa",
+    }[wildcards.build]
+
+
 def get_path(wildcards):
     return samples.loc[wildcards.sample, f"{wildcards.build}_path"]
 
@@ -79,7 +86,7 @@ rule strdust_unphased:
         "logs/pathSTR_STRdust/{build}/{sample}.log",
     params:
         cram=get_path,
-        ref=ref,
+        ref=get_ref,
         targets="/home/wdecoster/p200/data/hg38.STRchive-disease-loci.TRGT.bed",
         binary="/home/wdecoster/repositories/STRdust/target/release/STRdust",
         haploid_chroms=get_haploid_chroms,
@@ -106,7 +113,7 @@ rule strdust_unphased_repeats:
         "logs/pathSTR_STRdust_random_repeats/{build}/{sample}.log",
     params:
         cram=get_path,
-        ref=ref,
+        ref=get_ref,
         targets="/home/wdecoster/pathSTR-1000G/data/random-simple-repeats.bed",
         binary="/home/wdecoster/repositories/STRdust/target/release/STRdust",
     conda:
