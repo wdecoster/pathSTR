@@ -5,6 +5,7 @@ import io
 import gzip
 import base64
 from cyvcf2 import VCF
+import numpy as np
 
 
 def parse_input(vcf_list, sample_info, repeats):
@@ -73,18 +74,21 @@ def parse_vcf(vcf, repeats, name=None):
         if gene is None:
             print(f"Skipping {chrom}:{str(v.POS)}-{str(v.end)} - not in bed file.")
             continue
+        # the code below makes sure we can deal with RB and FRB being either in the INFO field or in the format field
         full_lengths = v.INFO.get("FRB") if v.INFO.get("FRB") else v.format("FRB")[0]
         ref_diff = v.INFO.get("RB") if v.INFO.get("RB") else v.format("RB")[0]
         support = v.format("SUP")[0]
         sequences = parse_alts(v.ALT, v.genotypes[0])
+        # missing genotypes end up as -2147483648 for FRB and RB.
+        # that is odd and problematic, so I replace them with np.nan
         calls.append(
             (
                 chrom,
                 gene,
                 name,
                 "Allele1",
-                full_lengths[0],
-                ref_diff[0],
+                full_lengths[0] if full_lengths[0] > -2147483648 else np.nan,
+                ref_diff[0] if ref_diff[0] > -2147483648 else np.nan,
                 sequences[0],
                 support[0],
             )
@@ -95,8 +99,8 @@ def parse_vcf(vcf, repeats, name=None):
                 gene,
                 name,
                 "Allele2",
-                full_lengths[1],
-                ref_diff[1],
+                full_lengths[1] if full_lengths[1] > -2147483648 else np.nan,
+                ref_diff[1] if ref_diff[1] > -2147483648 else np.nan,
                 sequences[1],
                 support[1],
             )
