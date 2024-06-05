@@ -1,6 +1,7 @@
 import pandas as pd
 from itertools import chain
 import os
+import io
 import gzip
 import base64
 from cyvcf2 import VCF
@@ -54,15 +55,18 @@ def parse_input(vcf_list, sample_info, repeats):
     return df
 
 
-def parse_vcf(vcf, repeats):
+def parse_vcf(vcf, repeats, name=None):
     """
     Parse a VCF file and return a list of calls
     The chromosome and position are used to get the gene from the repeats object
     If necessary, the chromosome is prefixed with "chr"
     Positions are matched exactly, so the bed file for genotyping should be the same as the one used for the repeats object here
+
+    This function expects that the VCF contains only one sample
     """
     calls = []
-    name = os.path.basename(vcf).replace(".vcf.gz", "")
+    if name is None:
+        name = os.path.basename(vcf).replace(".vcf.gz", "")
     for v in VCF(vcf):
         chrom = v.CHROM if v.CHROM.startswith("chr") else "chr" + v.CHROM
         gene = repeats.gene(f"{chrom}:{str(v.POS)}-{str(v.end)}")
@@ -118,53 +122,59 @@ def flatten(it):
     return chain.from_iterable(it)
 
 
-def parse_uploaded_vcf(contents, filename, repeats):
-    content_type, content_string = contents.split(",")
+def parse_uploaded_vcf(contents, uploaded_filename, repeats):
+    """
+    Parse the uploaded VCF file and return a dataframe
+    :param contents: contents of the uploaded file
+    :param uploaded_filename: name of the uploaded file
+    :param repeats: repeats object
+
+    This function expects that the VCF contains only one sample
+    The file is expected to be a VCF or a gzipped VCF, and is decoded from base64, kept in memory, and passed to cyvcf2
+    """
+    _, content_string = contents.split(",")
     decoded = base64.b64decode(content_string)
-    # write the decoded file to a temporary file
-    # make sure the file ends with .gz and is gzipped
-    # and read it back in using cyvcf2
-    if filename.endswith(".gz"):
-        tempfile = os.path.join("/tmp", os.path.basename(filename))
-        with open(tempfile, "wb") as f:
-            f.write(decoded)
-    else:
-        tempfile = os.path.join("/tmp", os.path.basename(filename) + ".gz")
-        with gzip.open(tempfile, "wb") as f:
-            f.write(decoded)
     try:
-        calls = parse_vcf(tempfile, repeats)
+        r, w = os.pipe()
+        name = uploaded_filename.replace(".vcf", "").replace(".gz", "")
+        if uploaded_filename.endswith(".gz"):
+            with os.fdopen(w, "wb") as f:
+                f.write(decoded)
+        else:
+            with gzip.open(w, "wb") as f:
+                f.write(decoded)
+        r_fd = os.fdopen(r, "rb")
+        calls = parse_vcf(r_fd, repeats, name=name)
     except OSError:
         # this happens when the file is not a VCF, or malformed
-        os.remove(tempfile)
         return None
-    df = pd.DataFrame(
-        calls,
-        columns=[
-            "chrom",
-            "gene",
-            "sample",
-            "allele",
-            "length",
-            "ref_diff",
-            "sequence",
-            "support",
-        ],
-    )
-    # for every repeat in the dataframe, divide the length and ref_diff by the motif length
-    df["length"] = df.apply(
-        lambda x: round(x["length"] / repeats.motif_length(x["gene"]), 2),
-        axis=1,
-    )
-    df["ref_diff"] = df.apply(
-        lambda x: round(x["ref_diff"] / repeats.motif_length(x["gene"]), 2),
-        axis=1,
-    )
-    df["Group"] = "Uploaded"
-    df["Superpopulation"] = "Uploaded"
-    df["Sex"] = "Uploaded"
-    os.remove(tempfile)
-    return df
+    else:
+        df = pd.DataFrame(
+            calls,
+            columns=[
+                "chrom",
+                "gene",
+                "sample",
+                "allele",
+                "length",
+                "ref_diff",
+                "sequence",
+                "support",
+            ],
+        )
+        # for every repeat in the dataframe, divide the length and ref_diff by the motif length
+        df["length"] = df.apply(
+            lambda x: round(x["length"] / repeats.motif_length(x["gene"]), 2),
+            axis=1,
+        )
+        df["ref_diff"] = df.apply(
+            lambda x: round(x["ref_diff"] / repeats.motif_length(x["gene"]), 2),
+            axis=1,
+        )
+        df["Group"] = "Uploaded"
+        df["Superpopulation"] = "Uploaded"
+        df["Sex"] = "Uploaded"
+        return df
 
 
 def stats(df):
