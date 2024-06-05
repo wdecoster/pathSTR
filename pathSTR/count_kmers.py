@@ -24,6 +24,8 @@ def parse_kmers(df, repeats, gene):
                     }
                 )
                 kmers_extracted.append(kmers),
+    if len(kmers_extracted) == 0:
+        return pd.DataFrame()
     return (
         pd.DataFrame(kmers_extracted)
         .set_index("identifier")
