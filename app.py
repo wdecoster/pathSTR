@@ -862,9 +862,10 @@ def main():
         [
             State("dropdown-details-individual", "value"),
             State("dropdown-details-gene", "value"),
+            State("stored-df", "data"),
         ],
     )
-    def return_igv(n_clicks, individuals, gene):
+    def return_igv(n_clicks, individuals, gene, df):
         """
         When the button is clicked, show the IGV plot for the selected individual and gene
         """
@@ -882,7 +883,7 @@ def main():
                         locus=f"{chrom}:{start-25}-{end+25}",
                         tracks=(
                             [
-                                make_igv_alignment_track(individual)
+                                make_igv_alignment_track(individual, df)
                                 for individual in individuals
                             ]
                         ),
@@ -890,14 +891,18 @@ def main():
                 ]
             )
 
-    def make_igv_alignment_track(individual):
+    def make_igv_alignment_track(individual, df):
+        # use the df to get the hg38 url from the individual (sample)
+        hg38_path = df[df["sample"] == individual]
+        alignment_type = hg38_path.split('.')[-1]
+        index_extension = "crai" if alignment_type == "cram" else "bam"
         return {
             "name": individual,
             "type": "alignment",
-            "url": f"https://ftp.1000genomes.ebi.ac.uk/vol1/ftp/data_collections/1KG_ONT_VIENNA/hg38/{individual}.hg38.cram",
-            "indexURL": f"https://ftp.1000genomes.ebi.ac.uk/vol1/ftp/data_collections/1KG_ONT_VIENNA/hg38/{individual}.hg38.cram.crai",
+            "url": hg38_path,
+            "indexURL": f"{hg38_path}.{index_extension}",
             "height": 300,
-            "format": "cram",
+            "format": alignment_type,
             "showSoftClips": True,
             "showInsertionText": True,
             "showDeletionText": True,
