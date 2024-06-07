@@ -535,6 +535,8 @@ def kmer_plot(
                 plot_bgcolor="rgba(0, 0, 0, 0)",
                 paper_bgcolor="rgba(0, 0, 0, 0)",
             )
+        # change the size of the dots in the legend
+        fig.update_layout(legend={"itemsizing": "constant"})
         return fig
     else:
         sys.stderr.write("Invalid mode for kmer plot\n")
