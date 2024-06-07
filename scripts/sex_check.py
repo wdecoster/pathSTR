@@ -16,8 +16,8 @@ def main():
     df["chrX"] = df["chrX"] + np.random.normal(0.0, 0.02, len(df))
     df["chrY"] = df["chrY"] + np.random.normal(0.0, 0.02, len(df))
 
-    sampleinfo = pd.read_table(args.sampleinfo, usecols=["Sample name", "Sex"]).rename(
-        columns={"Sample name": "identifier"}
+    sampleinfo = pd.read_table(args.sampleinfo, usecols=["sample", "Sex"]).rename(
+        columns={"sample": "identifier"}
     )
     df = df.merge(sampleinfo, on="identifier", how="left").fillna("unknown")
     fig = px.scatter(
