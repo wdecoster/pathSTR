@@ -998,7 +998,10 @@ def get_args():
         nargs="+",
         help="Input VCFs",
     )
-    parser.add_argument("--sample_info", help="Sample info file")
+    parser.add_argument(
+        "--sample_info",
+        help="Sample info file created by the workflow (pathSTR_samples.tsv)",
+    )
     parser.add_argument("--db", help="Input is in one pathSTR_db file")
     parser.add_argument("--save_db", help="Save the parsed data to a pathSTR_db file")
     parser.add_argument(
