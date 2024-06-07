@@ -32,9 +32,15 @@ def parse_input(vcf_list, sample_info, repeats):
             pd.read_csv(
                 sample_info,
                 sep="\t",
-                usecols=["Sample name", "Sex", "Superpopulation code"],
+                usecols=[
+                    "sample",
+                    "Sex",
+                    "Superpopulation code",
+                    "source",
+                    "hg38_path",
+                ],
             )
-            .set_index("Sample name")
+            .set_index("sample")
             .rename(columns={"Superpopulation code": "Superpopulation"})
         )
     ).assign(Group="1000 Genomes")
