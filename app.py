@@ -506,6 +506,16 @@ def main():
                                 inline=True,
                                 inputStyle={"margin-left": "15px"},
                             ),
+                            # add a download button for the reference build, either hg38 or t2t, with default hg38
+                            dcc.Dropdown(
+                                id="dropdown-reference",
+                                options=[
+                                    {"label": "hg38", "value": "hg38"},
+                                    {"label": "t2t", "value": "t2t"},
+                                ],
+                                value="hg38",
+                                clearable=False,
+                            ),
                             html.H1("Downloads", className="my-3"),
                             html.Div(
                                 [
