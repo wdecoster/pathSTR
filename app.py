@@ -463,12 +463,18 @@ def main():
                                                 href="https://www.medrxiv.org/content/10.1101/2023.12.20.23300308v1",
                                                 target="_blank",
                                             ),
-                                            # " and ",
-                                            # html.A(
-                                            #     "Gustafson et al. 2024",
-                                            #     href="https://github.com/wdecoster/STRdust",
-                                            #     target="_blank",
-                                            # ),
+                                            ", ",
+                                            html.A(
+                                                "Schloissnig et al. 2024",
+                                                href="https://www.biorxiv.org/content/10.1101/2024.04.18.590093v1",
+                                                target="_blank",
+                                            ),
+                                            " and ",
+                                            html.A(
+                                                "Gustafson et al. 2024",
+                                                href="https://www.medrxiv.org/content/10.1101/2024.03.05.24303792v1",
+                                                target="_blank",
+                                            ),
                                             ".",
                                         ]
                                     ),
