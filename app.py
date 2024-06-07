@@ -40,6 +40,7 @@ def main():
         }
         stat = pd.read_hdf(args.db, key="stat")
         repeats = Repeats(df=pd.read_hdf(args.db, key="repeats"))
+        db_version = pd.read_hdf(args.db, key="version").values[0]
         logging.info("Finished reading pathSTR_db file.")
     elif args.vcf and args.sample_info:
         # read in the BED file with the STRs from STRchive
@@ -63,6 +64,12 @@ def main():
                 for gene, kmer_df in kmers.items():
                     kmer_df.to_hdf(args.save_db, key=f"kmer_{gene}", mode="a")
                 repeats.df.to_hdf(args.save_db, key="repeats", mode="a")
+                # use the date of today as the database version identifier and save it to the database as a pd.Series
+                import datetime
+
+                pd.Series(datetime.date.today().strftime("%Y-%m-%d")).to_hdf(
+                    args.save_db, key="version", mode="a"
+                )
                 logging.info(f"Saved parsed data to {args.save_db}.")
     else:
         logging.error(
@@ -418,7 +425,7 @@ def main():
                                 [
                                     html.P(
                                         [
-                                            f"This web app is developed and maintained by Wouter De Coster. The hosting and deployment is arranged by Svenn D'Hert, as well as some nice layout fixes. The current version is v{__version__}. ",
+                                            f"This web app is developed and maintained by Wouter De Coster. The hosting and deployment is arranged by Svenn D'Hert, as well as some nice layout fixes. The current app version is v{__version__}, and the database was generated on {db_version}. ",
                                             "The source code is available on ",
                                             html.A(
                                                 "GitHub",
