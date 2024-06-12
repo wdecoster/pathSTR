@@ -21,16 +21,18 @@ samples_vienna = pd.read_table(
 samples_vienna_ftp = (
     "https://ftp.1000genomes.ebi.ac.uk/vol1/ftp/data_collections/1KG_ONT_VIENNA/"
 )
-samples_vienna["sample"] = samples_vienna["filename"].str.replace(".hg38.cram", "")
+samples_vienna["sample"] = samples_vienna["filename"].str.replace(
+    ".hg38.cram", "", regex=False
+)
 samples_vienna["hg38_path"] = (
     samples_vienna_ftp + "hg38/" + samples_vienna["filename"].astype(str)
 )
 samples_vienna["t2t_path"] = (
     samples_vienna_ftp
     + "t2t/"
-    + samples_vienna["filename"].str.replace(".hg38.", ".t2t.").astype(str)
+    + samples_vienna["filename"].str.replace(".hg38.", ".t2t.", regex=False).astype(str)
 )
-samples_vienna["source"] = "Noyvert"
+samples_vienna["source"] = "Noyvert/Schloissnig"
 
 # MILLER
 samples_miller = pd.read_table(
@@ -49,7 +51,7 @@ samples_miller["sample"] = (
     .str[0]
     .str.split("_")
     .str[0]
-    .str.replace("GM", "NA")
+    .str.replace("GM", "NA", regex=False)
 )
 
 samples_miller["hg38_path"] = samples_miller_s3 + samples_miller["filename"].astype(str)
@@ -72,8 +74,9 @@ samples = (
     .join(sample_info)
     .dropna()
 )
+print("\nSources and samples in study:")
+print(samples["source"].value_counts().to_string() + "\n")
 
-print(samples["source"].value_counts())
 samples.to_csv(
     os.path.join(work_dir, "data/pathSTR_samples.tsv"),
     sep="\t",
@@ -107,10 +110,11 @@ rule all:
             sample=samples.index,
             build=["hg38"],
         ),
-        length_vs_yield=os.path.join(work_dir, "plots/length_vs_yield.html"),
+        length_vs_yield=os.path.join(work_dir, "plots/yield_vs_length.html"),
         good_samples=os.path.join(
-            work_dir, "pathSTR_STRdust_good_samples/good_samples.txt"
+            work_dir, "pathSTR_STRdust_good_samples/hg38/good_samples.txt"
         ),
+        good_samples_zip=os.path.join(work_dir, "pathSTR_STRdust_good_samples.zip"),
         sex_check=os.path.join(work_dir, "plots/sex_check.html"),
 
 
@@ -253,9 +257,9 @@ rule plot_length_vs_yield:
     input:
         os.path.join(work_dir, "cramino/hg38/cramino_all.tsv"),
     output:
-        os.path.join(work_dir, "plots/length_vs_yield.html"),
+        os.path.join(work_dir, "plots/yield_vs_length.html"),
     log:
-        "logs/plot_length_vs_yield.log",
+        "logs/yield_vs_length.log",
     conda:
         "/home/wdecoster/pathSTR-1000G/envs/pandas_plotly.yml"
     params:
@@ -267,13 +271,13 @@ rule plot_length_vs_yield:
 
 rule copy_good_samples:
     input:
-        overview=os.path.join(work_dir, "cramino/cramino_all.tsv"),
+        overview=os.path.join(work_dir, "cramino/hg38/cramino_all.tsv"),
         vcfs=expand(
-            os.path.join(work_dir, "pathSTR_STRdust/{sample}.vcf.gz"),
+            os.path.join(work_dir, "pathSTR_STRdust/hg38/{sample}.vcf.gz"),
             sample=samples.index,
         ),
     output:
-        os.path.join(work_dir, "pathSTR_STRdust_good_samples/good_samples.txt"),
+        os.path.join(work_dir, "pathSTR_STRdust_good_samples/hg38/good_samples.txt"),
     log:
         "logs/copy_good_samples.log",
     conda:
@@ -282,6 +286,17 @@ rule copy_good_samples:
         script=os.path.join(work_dir, "scripts/copy_good_samples.py"),
     shell:
         "work_dir=$(dirname {output}) ; /home/wdecoster/miniconda3/envs/pandas_plotly/bin/python {params.script} -c {input.overview} -v {input.vcfs} -o $work_dir 2> {log}"
+
+
+rule zip_good_samples:
+    input:
+        os.path.join(work_dir, "pathSTR_STRdust_good_samples/hg38/good_samples.txt"),  #doesn't actually use that file, just needs to know it has been created
+    output:
+        os.path.join(work_dir, "pathSTR_STRdust_good_samples.zip"),
+    log:
+        "logs/zip_good_samples.log",
+    shell:
+        "work_dir=$(dirname {input}) && zip -r -j {output} $work_dir &> {log}"
 
 
 rule plot_sex_check:
