@@ -9,9 +9,17 @@ def main():
     cramino = pd.read_csv(args.cramino, sep="\t")
     good_samples = (
         cramino.loc[cramino["Yield [Gb]"] > 32, "identifier"]
-        .str.replace(".hg38", "")
+        .str.replace(".hg38", "", regex=False)
+        .str.split("_")
+        .str[0]
+        .str.split("-")
+        .str[0]
+        .str.replace("GM", "NA", regex=False)
         .tolist()
     )
+    # remove the suspected Klinefelter case
+    if "HG02372" in good_samples:
+        good_samples.remove("HG02372")
     for vcf in args.variants:
         if vcf.split("/")[-1].replace(".vcf.gz", "") in good_samples:
             base = os.path.basename(vcf)
