@@ -8,20 +8,31 @@ def main():
     args = get_args()
     df = pd.read_csv(
         args.cramino, sep="\t", usecols=["identifier", "chrX", "chrY", "Yield [Gb]"]
+    ).assign(
+        identifier=lambda d: d["identifier"]
+        .str.replace(".hg38", "", regex=False)
+        .str.split("_")
+        .str[0]
+        .str.split("-")
+        .str[0]
+        .str.replace("GM", "NA", regex=False)
     )
     df = df[df["Yield [Gb]"] > args.minyield]
-    df["identifier"] = df["identifier"].str.replace(".hg38", "")
     # add a little bit of random noise to avoid overlapping points
     # the noise is normally distributed with a mean of 0 and a standard deviation of 0.02
     df["chrX"] = df["chrX"] + np.random.normal(0.0, 0.02, len(df))
     df["chrY"] = df["chrY"] + np.random.normal(0.0, 0.02, len(df))
 
-    sampleinfo = pd.read_table(args.sampleinfo, usecols=["sample", "Sex"]).rename(
-        columns={"sample": "identifier"}
-    )
+    sampleinfo = pd.read_table(
+        args.sampleinfo, usecols=["sample", "Sex", "source"]
+    ).rename(columns={"sample": "identifier"})
     df = df.merge(sampleinfo, on="identifier", how="left").fillna("unknown")
     fig = px.scatter(
-        df, x="chrX", y="chrY", color="Sex", hover_data=["identifier", "Yield [Gb]"]
+        df,
+        x="chrX",
+        y="chrY",
+        color="Sex",
+        hover_data=["identifier", "Yield [Gb]", "source"],
     )
     # change opacity to 0.6
     fig.update_traces(opacity=0.8, marker_size=3)
