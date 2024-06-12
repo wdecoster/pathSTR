@@ -6,15 +6,34 @@ import plotly
 
 def main():
     args = get_args()
-    plot_yield_vs_length(args.input, args.output)
+    plot_yield_vs_length(args)
 
 
-def plot_yield_vs_length(cramino_file, output_file):
-    df = pd.read_csv(cramino_file, sep="\t")
+def plot_yield_vs_length(args):
+    df = (
+        pd.read_csv(args.input, sep="\t")
+        .assign(
+            identifier=lambda d: d["identifier"]
+            .str.replace(".hg38", "", regex=False)
+            .str.split("_")
+            .str[0]
+            .str.split("-")
+            .str[0]
+        )
+        .set_index("identifier", drop=False)
+        .join(
+            pd.read_csv(args.sampleinfo, sep="\t", usecols=["sample", "source"])
+            .rename(columns={"sample": "identifier"})
+            .set_index("identifier"),
+            how="outer",
+        )
+    )
+    df.to_csv("yield_vs_length.tsv", sep="\t", index=False)
     fig = px.scatter(
         df,
         x="N50",
         y="Yield [Gb]",
+        color="source",
         hover_data=["identifier"],
         marginal_y="violin",
     )
@@ -26,11 +45,11 @@ def plot_yield_vs_length(cramino_file, output_file):
         xaxis_title="N50 [bp]",
         yaxis_title="Yield [Gb]",
         plot_bgcolor="white",
-        width=500,
+        width=800,
         height=800,
     )
     fig = fix_marginal_violin(fig)
-    with open(output_file, "w") as f:
+    with open(args.output, "w") as f:
         f.write(fig.to_html())
 
 
@@ -48,6 +67,7 @@ def get_args():
     parser.add_argument(
         "-o", "--output", help="Output plot file", default="yield_vs_length.html"
     )
+    parser.add_argument("-s", "--sampleinfo", help="Sample info file")
     return parser.parse_args()
 
 
