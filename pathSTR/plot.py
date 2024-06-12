@@ -63,7 +63,7 @@ def violin_plot(
         fig.add_hline(y=path_length, line_dash="dot", line_color="red")
     if publication_ready:
         fig.update_layout(
-            font=dict(size=16),
+            font=dict(size=20),
             legend=dict(
                 title_font=dict(size=16),
                 font=dict(size=16),
@@ -72,7 +72,7 @@ def violin_plot(
             width=800,
             height=800,
         )
-        fig.update_traces(marker=dict(size=5, opacity=0.5))
+        fig.update_traces(marker=dict(size=8, opacity=0.8))
     return fig
 
 
@@ -209,7 +209,7 @@ def length_scatter(
 
     if publication_ready:
         fig.update_layout(
-            font=dict(size=16),
+            font=dict(size=20),
             legend=dict(
                 title_font=dict(size=16),
                 font=dict(size=16),
@@ -220,7 +220,7 @@ def length_scatter(
         )
         for trace in fig.data:
             if type(trace) == plotly.graph_objs.scatter:
-                trace.marker.update(dict(size=6, opacity=0.5))
+                trace.marker.update(dict(size=8, opacity=0.8))
     return fig
 
 
