@@ -80,6 +80,8 @@ def main():
         )
     if args.store_only:
         return
+
+    num_samples = len(df["sample"].unique())
     # Create Dash app
     app = Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
     # Define app layout
@@ -425,7 +427,7 @@ def main():
                                 [
                                     html.P(
                                         [
-                                            f"This web app is developed and maintained by Wouter De Coster. The hosting and deployment is arranged by Svenn D'Hert, as well as some nice layout fixes. The current app version is v{__version__}, and the database was generated on {db_version}. ",
+                                            f"This web app is developed and maintained by Wouter De Coster. The hosting and deployment is arranged by Svenn D'Hert, as well as some nice layout fixes. The current app version is v{__version__}, and the database of {num_samples} individuals was generated on {db_version}. ",
                                             "The source code is available on ",
                                             html.A(
                                                 "GitHub",
@@ -492,8 +494,9 @@ def main():
                                         style={"textAlign": "justify"},
                                     ),
                                 ],
-                                style={"width": "80%", "margin": "auto"},
+                                style={"width": "60%", "margin": "auto"},
                             ),
+                            html.H1("Options", className="my-3"),
                             dcc.Checklist(
                                 id="publication-ready",
                                 options=[
@@ -506,16 +509,16 @@ def main():
                                 inline=True,
                                 inputStyle={"margin-left": "15px"},
                             ),
-                            # add a download button for the reference build, either hg38 or t2t, with default hg38
-                            dcc.Dropdown(
-                                id="dropdown-reference",
-                                options=[
-                                    {"label": "hg38", "value": "hg38"},
-                                    {"label": "t2t", "value": "t2t"},
-                                ],
-                                value="hg38",
-                                clearable=False,
-                            ),
+                            # # add a download button for the reference build, either hg38 or t2t, with default hg38
+                            # dcc.Dropdown(
+                            #     id="dropdown-reference",
+                            #     options=[
+                            #         {"label": "hg38", "value": "hg38"},
+                            #         {"label": "t2t", "value": "t2t"},
+                            #     ],
+                            #     value="hg38",
+                            #     clearable=False,
+                            # ),
                             html.H1("Downloads", className="my-3"),
                             html.Div(
                                 [
@@ -539,7 +542,6 @@ def main():
                                     ),
                                     dcc.Download(id="download"),
                                     dcc.Download(id="download-zip"),
-                                    # adding a checkbox for making 'publication-ready figures'
                                 ],
                             ),
                             html.H1("Repeats", className="my-3"),
@@ -551,17 +553,38 @@ def main():
                                     html.Div(
                                         dash_table.DataTable(
                                             repeats.df[
-                                                ["chrom", "start", "end"]
+                                                [
+                                                    "chrom",
+                                                    "start",
+                                                    "end",
+                                                    "name",
+                                                ]
                                             ].to_dict("records"),
                                             [
                                                 {"name": i, "id": i}
-                                                for i in ["chrom", "start", "end"]
+                                                for i in [
+                                                    "chrom",
+                                                    "start",
+                                                    "end",
+                                                    "name",
+                                                ]
                                             ],
+                                            style_data={"user-select": "auto"},
+                                            export_format="csv",
                                         ),
                                         className="table",
-                                        style={"width": "30%", "margin": "auto"},
+                                        style={
+                                            "width": "30%",
+                                            "margin": "auto",
+                                            "display": "flex",
+                                            "justifyContent": "flex-start",
+                                        },
                                     ),
                                 ],
+                                style={
+                                    "display": "flex",
+                                    "justifyContent": "flex-start",
+                                },
                             ),
                         ],
                     ),
@@ -828,13 +851,13 @@ def main():
         detail_df = (
             df[(df["gene"] == gene) & (df["sample"].isin(individuals))]
             .reset_index(names="sample.1")
-            .drop(columns=["Group", "allele", "gene", "chrom"])
+            .drop(columns=["Group", "allele", "gene", "chrom", "hg38_path"])
             .round(1)
             .groupby("sample")
             .transform(
                 lambda x: (
                     ",".join([str(i) for i in set(x)])
-                    if x.name in ["sample.1", "Sex", "Superpopulation"]
+                    if x.name in ["sample.1", "Sex", "Superpopulation", "source"]
                     else ",".join([str(i) for i in list(x)])
                 )
             )
@@ -862,10 +885,9 @@ def main():
         [
             State("dropdown-details-individual", "value"),
             State("dropdown-details-gene", "value"),
-            State("stored-df", "data"),
         ],
     )
-    def return_igv(n_clicks, individuals, gene, df):
+    def return_igv(n_clicks, individuals, gene):
         """
         When the button is clicked, show the IGV plot for the selected individual and gene
         """
@@ -883,7 +905,7 @@ def main():
                         locus=f"{chrom}:{start-25}-{end+25}",
                         tracks=(
                             [
-                                make_igv_alignment_track(individual, df)
+                                make_igv_alignment_track(individual)
                                 for individual in individuals
                             ]
                         ),
@@ -891,11 +913,11 @@ def main():
                 ]
             )
 
-    def make_igv_alignment_track(individual, df):
+    def make_igv_alignment_track(individual):
         # use the df to get the hg38 url from the individual (sample)
-        hg38_path = df[df["sample"] == individual]
-        alignment_type = hg38_path.split('.')[-1]
-        index_extension = "crai" if alignment_type == "cram" else "bam"
+        hg38_path = df.loc[df["sample"] == individual, "hg38_path"].values[0]
+        alignment_type = hg38_path.split(".")[-1]
+        index_extension = "crai" if alignment_type == "cram" else "bai"
         return {
             "name": individual,
             "type": "alignment",
