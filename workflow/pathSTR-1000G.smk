@@ -1,10 +1,38 @@
 import os
 import pandas as pd
 
+
+def parse_motifs(info):
+    """Return the length of the longest motif"""
+    motif_string = [i for i in info.split(";") if i.startswith("MOTIFS=")][0]
+    motifs = motif_string.split("=")[1].split(",")
+    return max([len(m) for m in motifs])
+
+
 # setting up paths
 work_dir = "/home/wdecoster/pathSTR-1000G/"
 strdust = "/home/wdecoster/repositories/STRdust/target/release/STRdust"
-strchive = "/home/wdecoster/p200/data/hg38.STRchive-disease-loci.TRGT.bed"
+longTR = "/home/wdecoster/repositories/LongTR/LongTR"  # hacked version of LongTR to enable remote cram
+strchive = pd.read_csv(
+    "https://raw.githubusercontent.com/hdashnow/STRchive/main/data/hg38.STRchive-disease-loci.TRGT.bed",
+    sep="\t",
+    header=None,
+    names=["chrom", "start", "end", "info"],
+)
+targets_strdust = os.path.join(work_dir, "data/STRchive_STRdust.bed")
+strchive.to_csv(targets_strdust, sep="\t", index=False, header=False)
+strchive["motif_length"] = strchive["info"].apply(lambda x: parse_motifs(x))
+# get the number of copies of the motif in the reference genome
+strchive["num_copies"] = (strchive["end"] - strchive["start"]) / strchive[
+    "motif_length"
+]
+targets_longtr = os.path.join(work_dir, "data/STRchive_LongTR.bed")
+strchive[["chrom", "start", "end", "motif_length", "num_copies"]].to_csv(
+    targets_longtr,
+    sep="\t",
+    index=False,
+    header=False,
+)
 
 
 if "extra" not in config:
@@ -103,6 +131,10 @@ def get_haploid_chroms(wildcards):
         return "--haploid chrX,chrY"
 
 
+def get_sex(wildcards):
+    return samples.loc[wildcards.sample, "Sex"]
+
+
 rule all:
     input:
         strdust=expand(
@@ -110,11 +142,22 @@ rule all:
             sample=samples.index,
             build=["hg38"],
         ),
-        length_vs_yield=os.path.join(work_dir, "plots/yield_vs_length.html"),
-        good_samples=os.path.join(
-            work_dir, "pathSTR_STRdust_good_samples/hg38/good_samples.txt"
+        longtr=expand(
+            os.path.join(work_dir, "pathSTR_longTR/{build}/{sample}.vcf.gz"),
+            sample=samples.index,
+            build=["hg38"],
         ),
-        good_samples_zip=os.path.join(work_dir, "pathSTR_STRdust_good_samples.zip"),
+        length_vs_yield=os.path.join(work_dir, "plots/yield_vs_length.html"),
+        good_samples=expand(
+            os.path.join(
+                work_dir, "pathSTR_{genotyper}_good_samples/hg38/good_samples.txt"
+            ),
+            genotyper=["STRdust", "longTR"],
+        ),
+        good_samples_zip=expand(
+            os.path.join(work_dir, "pathSTR_{genotyper}_good_samples.zip"),
+            genotyper=["STRdust", "longTR"],
+        ),
         sex_check=os.path.join(work_dir, "plots/sex_check.html"),
 
 
@@ -147,7 +190,7 @@ rule strdust_unphased:
     params:
         cram=get_path,
         ref=get_ref,
-        targets=strchive,
+        targets=targets_strdust,
         binary=strdust,
         haploid_chroms=get_haploid_chroms,
     conda:
@@ -163,6 +206,31 @@ rule strdust_unphased:
         {params.ref} \
         {params.cram} 2> {log} \
         | bgzip > {output} 2>> {log}
+        """
+
+
+rule longTR:
+    # this rule uses a hacked version of LongTR, in which the check for existance of the input cram is removed (as the file is remote)
+    output:
+        os.path.join(work_dir, "pathSTR_longTR/{build}/{sample}.vcf.gz"),
+    log:
+        os.path.join(work_dir, "logs/pathSTR_longTR/{build}/{sample}.log"),
+    params:
+        cram=get_path,
+        ref=get_ref,
+        sample="{wildcards.sample}",
+        sex=get_sex,
+        targets=targets_longtr,
+        binary=longTR,
+    shell:
+        """{params.binary} \
+        --bams {params.cram} \
+        --fasta {params.ref} \
+        --regions {params.targets} \
+        --bam-samps {params.sample} \
+        --bam-libs lib1 \
+        --tr-vcf {output} \
+        --min-mean-qual -1 2> {log}
         """
 
 
@@ -273,13 +341,13 @@ rule copy_good_samples:
     input:
         overview=os.path.join(work_dir, "cramino/hg38/cramino_all.tsv"),
         vcfs=expand(
-            os.path.join(work_dir, "pathSTR_STRdust/hg38/{sample}.vcf.gz"),
+            os.path.join(work_dir, "pathSTR_{{genotyper}}/hg38/{sample}.vcf.gz"),
             sample=samples.index,
         ),
     output:
-        os.path.join(work_dir, "pathSTR_STRdust_good_samples/hg38/good_samples.txt"),
+        os.path.join(work_dir, "pathSTR_{genotyper}_good_samples/hg38/good_samples.txt"),
     log:
-        "logs/copy_good_samples.log",
+        "logs/copy_good_samples_{genotyper}.log",
     conda:
         "/home/wdecoster/pathSTR-1000G/envs/pandas_plotly.yml"
     params:
@@ -290,11 +358,11 @@ rule copy_good_samples:
 
 rule zip_good_samples:
     input:
-        os.path.join(work_dir, "pathSTR_STRdust_good_samples/hg38/good_samples.txt"),  #doesn't actually use that file, just needs to know it has been created
+        os.path.join(work_dir, "pathSTR_{genotyper}_good_samples/hg38/good_samples.txt"),  #doesn't actually use that file, just needs to know it has been created
     output:
-        os.path.join(work_dir, "pathSTR_STRdust_good_samples.zip"),
+        os.path.join(work_dir, "pathSTR_{genotyper}_good_samples.zip"),
     log:
-        "logs/zip_good_samples.log",
+        "logs/zip_good_samples_{genotyper}.log",
     shell:
         "work_dir=$(dirname {input}) && zip -r -j {output} $work_dir &> {log}"
 
