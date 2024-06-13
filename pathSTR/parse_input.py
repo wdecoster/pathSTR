@@ -8,10 +8,10 @@ from cyvcf2 import VCF
 import numpy as np
 
 
-def parse_input(vcf_list, sample_info, repeats):
+def parse_input(vcf_list, sample_info, repeats, caller="strdust"):
 
     # read in the VCFs
-    calls = [parse_vcf(vcf, repeats) for vcf in vcf_list]
+    calls = [parse_vcf(vcf, repeats, caller) for vcf in vcf_list]
     # make a dataframe and join with the sample info
     df = (
         pd.DataFrame(
@@ -43,7 +43,7 @@ def parse_input(vcf_list, sample_info, repeats):
             .set_index("sample")
             .rename(columns={"Superpopulation code": "Superpopulation"})
         )
-    ).assign(Group="1000 Genomes")
+    ).assign(Group="1000 Genomes", caller=caller)
     # for every repeat in the dataframe, divide the length by the motif length
     df["length"] = df.apply(
         lambda x: x["length"] / repeats.motif_length(x["gene"]), axis=1
@@ -62,7 +62,7 @@ def parse_input(vcf_list, sample_info, repeats):
     return df
 
 
-def parse_vcf(vcf, repeats, name=None):
+def parse_vcf(vcf, repeats, caller, name=None):
     """
     Parse a VCF file and return a list of calls
     The chromosome and position are used to get the gene from the repeats object
@@ -76,17 +76,38 @@ def parse_vcf(vcf, repeats, name=None):
         name = os.path.basename(vcf).replace(".vcf.gz", "")
     for v in VCF(vcf):
         chrom = v.CHROM if v.CHROM.startswith("chr") else "chr" + v.CHROM
-        gene = repeats.gene(f"{chrom}:{str(v.POS)}-{str(v.end)}")
+        if caller == "strdust":
+            gene = repeats.gene(f"{chrom}:{str(v.POS)}-{str(v.end)}")
+        elif caller == "longtr":
+            # LongTR may adjust the POS field to include a SNV https://github.com/gymrek-lab/LongTR/issues/8
+            start = v.INFO.get("START")
+            gene = repeats.gene(f"{chrom}:{str(start)}-{str(v.end)}")
+        else:
+            raise ValueError("Unexpected caller")
         if gene is None:
             print(f"Skipping {chrom}:{str(v.POS)}-{str(v.end)} - not in bed file.")
             continue
-        # the code below makes sure we can deal with RB and FRB being either in the INFO field or in the format field
-        full_lengths = v.INFO.get("FRB") if v.INFO.get("FRB") else v.format("FRB")[0]
-        ref_diff = v.INFO.get("RB") if v.INFO.get("RB") else v.format("RB")[0]
-        support = v.format("SUP")[0]
+        if caller == "strdust":
+            full_lengths = v.format("FRB")[0]
+            ref_diff = v.format("RB")[0]
+            support = v.format("SUP")[0]
+        elif caller == "longtr":
+            # GB is presented as 'x|y' with the difference with the reference per allele
+            ref_diff = [int(i) for i in v.format("GB")[0].split("|")]
+            # LongTR may adjust the POS field to include a SNV, and does not have a field for the full repeat length
+            full_lengths = (
+                ref_diff[0] + v.end - start + 1,
+                ref_diff[1] + v.end - start + 1,
+            )
+            # LongTR does not have a field for the support, so I use the depth, which is the total number of reads
+            # this is however not the support per allele, so I duplicate the total depth for both alleles
+            support = (f"total:{v.format('DP')[0]}", f"total:{v.format('DP')[0]}")
+        else:
+            raise ValueError("Unexpected caller")
         sequences = parse_alts(v.ALT, v.genotypes[0])
         # missing genotypes end up as -2147483648 for FRB and RB.
         # that is odd and problematic, so I replace them with np.nan
+        # I don't know if that is only the case for STRdust, or if it is a general issue
         calls.append(
             (
                 chrom,
