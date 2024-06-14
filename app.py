@@ -35,8 +35,9 @@ def main():
     if args.db:
         df = pd.read_hdf(args.db, key="df").sort_values("gene")
         kmers = {
-            gene: pd.read_hdf(args.db, key=f"kmer_{gene}")
+            (dataset, gene): pd.read_hdf(args.db, key=f"kmer_{dataset}_{gene}")
             for gene in df["gene"].unique()
+            for dataset in df["dataset"].unique()
         }
         stat = pd.read_hdf(args.db, key="stat")
         repeats = Repeats(df=pd.read_hdf(args.db, key="repeats"))
@@ -46,23 +47,34 @@ def main():
         # read in the BED file with the STRs from STRchive
         repeats = Repeats()
         logging.info("Finished parsing repeats.")
-        # parse the VCF and sample info file
+
+        # parse the VCF and sample info file. The VCF argument is a FOFN with columns for vcf, build and genotyper
         df = parse.parse_input(args.vcf, args.sample_info, repeats).sort_values("gene")
-        logging.info("Finished parsing --vcf.")
+        logging.info("Finished parsing VCFs.")
+
         # Calculate mean and standard deviation per repeat for the comparison with uploaded data
         stat = parse.stats(df)
         logging.info("Finished calculating stats.")
-        kmers = {gene: parse_kmers(df, repeats, gene) for gene in df["gene"].unique()}
 
+        # parse the kmers for each gene, keeping datasets separate
+        # this results in kmers being a dictionary, with the (dataset, gene) tuple as key and the kmer df as value
+        # kmer counts cannot trivially be stored in a single DataFrame, as the number and names of columns would be variable
+        kmers = {
+            (dataset, gene): parse_kmers(df, repeats, gene, dataset)
+            for gene in df["gene"].unique()
+            for dataset in df["dataset"].unique()
+        }
         logging.info("Finished parsing kmers.")
         if args.save_db:
             if os.path.exists(args.save_db):
-                logging.warning("pathSTR_db file already exists, skipping.")
+                logging.warning(
+                    f"pathSTR_db file {args.save_db} already exists, skipping."
+                )
             else:
                 df.to_hdf(args.save_db, key="df", mode="w")
                 stat.to_hdf(args.save_db, key="stat", mode="a")
-                for gene, kmer_df in kmers.items():
-                    kmer_df.to_hdf(args.save_db, key=f"kmer_{gene}", mode="a")
+                for (dataset, gene), kmer_df in kmers.items():
+                    kmer_df.to_hdf(args.save_db, key=f"kmer_{dataset}_{gene}", mode="a")
                 repeats.df.to_hdf(args.save_db, key="repeats", mode="a")
                 # use the date of today as the database version identifier and save it to the database as a pd.Series
                 import datetime
@@ -73,10 +85,10 @@ def main():
                 logging.info(f"Saved parsed data to {args.save_db}.")
     else:
         logging.error(
-            "Provide either a pathSTR_db file, or VCF, sample info and BED file."
+            "Provide either a pathSTR_db file, or a fofn of VCFs and sample info file."
         )
         raise ValueError(
-            "Provide either a pathSTR_db file, or VCF, sample info and BED file"
+            "Provide either a pathSTR_db file, or a fofn of VCFs and sample info file"
         )
     if args.store_only:
         return
@@ -87,6 +99,10 @@ def main():
     # Define app layout
     gene_options = [
         {"label": gene, "value": gene} for gene in sorted(df["gene"].unique().tolist())
+    ]
+    dataset_options = [
+        {"label": dataset, "value": dataset}
+        for dataset in df["dataset"].unique().tolist()
     ]
     app.layout = html.Div(
         [
@@ -364,7 +380,7 @@ def main():
                                     [
                                         "Drag and drop or ",
                                         html.A(
-                                            "click to upload STRdust VCF.gz files (hg38)"
+                                            "click to upload VCF.gz files (hg38) with STR genotypes"
                                         ),
                                         " to show your data in the plots",
                                     ]
@@ -451,6 +467,12 @@ def main():
                                                 href="https://github.com/wdecoster/STRdust",
                                                 target="_blank",
                                             ),
+                                            " and ",
+                                            html.A(
+                                                "LongTR",
+                                                href="https://github.com/gymrek-lab/LongTR",
+                                                target="_blank",
+                                            ),
                                             " from samples of the 1000 Genomes project, sequenced on the Oxford Nanopore Technologies PromethION. "
                                             "Please let me know if you know a suitable dataset of control individuals to add, for which long read alignments are available online. ",
                                             "If this resource is useful to you, please cite our ",
@@ -509,16 +531,13 @@ def main():
                                 inline=True,
                                 inputStyle={"margin-left": "15px"},
                             ),
-                            # # add a download button for the reference build, either hg38 or t2t, with default hg38
-                            # dcc.Dropdown(
-                            #     id="dropdown-reference",
-                            #     options=[
-                            #         {"label": "hg38", "value": "hg38"},
-                            #         {"label": "t2t", "value": "t2t"},
-                            #     ],
-                            #     value="hg38",
-                            #     clearable=False,
-                            # ),
+                            # add a dropdown for selecting the dataset, with default STRdust
+                            dcc.Dropdown(
+                                id="dropdown-dataset",
+                                options=dataset_options,
+                                value="STRdust_hg38",
+                                clearable=False,
+                            ),
                             html.H1("Downloads", className="my-3"),
                             html.Div(
                                 [
@@ -530,7 +549,7 @@ def main():
                                                 className="btn btn-primary btn-lg",
                                             ),
                                             html.Button(
-                                                "Download STRdust VCFs",
+                                                "Download VCFs",
                                                 id="download-zip-button",
                                                 className="btn btn-success btn-lg mx-3",
                                             ),
@@ -607,14 +626,18 @@ def main():
         Input("upload-data", "contents"),
         State("upload-data", "filename"),
         State("upload-data", "last_modified"),
+        State("dropdown-dataset", "value"),
     )
-    def store_uploaded_data(list_of_contents, list_of_filenames, list_of_dates):
+    def store_uploaded_data(
+        list_of_contents, list_of_filenames, list_of_dates, dataset
+    ):
         """
         Process the uploaded user-VCF files
         """
         if list_of_contents is not None:
+            caller, build = dataset.split("_")
             dfs = [
-                parse.parse_uploaded_vcf(content, filename, repeats)
+                parse.parse_uploaded_vcf(content, filename, repeats, build, caller)
                 for (content, filename, _) in zip(
                     list_of_contents, list_of_filenames, list_of_dates
                 )
@@ -622,7 +645,7 @@ def main():
             for df, filename in zip(dfs, list_of_filenames):
                 if df is None:
                     print(
-                        f"Error parsing {filename}, please make sure it is a valid STRdust VCF.gz file"
+                        f"Error parsing {filename}, please make sure it is a valid VCF.gz file generated by the specified genotyper"
                     )
                     # Create a dummy dataframe to communicate error
                     return (
@@ -644,18 +667,24 @@ def main():
             Input("stored-df", "data"),
             Input("violin_options", "value"),
             Input("publication-ready", "value"),
+            State("dropdown-dataset", "value"),
         ],
     )
-    def update_violin(selected_gene, stored_df, violin_options, publication_ready):
+    def update_violin(
+        selected_gene, stored_df, violin_options, publication_ready, dataset
+    ):
         """
         Create repeat length violin plot
         """
         if stored_df is None:
-            filtered_df = df[df["gene"] == selected_gene]
+            filtered_df = df[(df["gene"] == selected_gene) & (df["dataset"] == dataset)]
         else:
             stored_df = pd.DataFrame(stored_df)
             combined_df = pd.concat([df, stored_df], ignore_index=True)
-            filtered_df = combined_df[combined_df["gene"] == selected_gene]
+            filtered_df = combined_df[
+                (combined_df["gene"] == selected_gene)
+                & (combined_df["dataset"] == dataset)
+            ]
         warning = (
             html.P(
                 "Interpret the pathogenic length with caution and always take repeat composition into account.",
@@ -687,20 +716,24 @@ def main():
             Input("stored-df", "data"),
             Input("violin_options", "value"),
             Input("publication-ready", "value"),
+            State("dropdown-dataset", "value"),
         ],
     )
     def update_length_scatter(
-        selected_gene, stored_df, violin_options, publication_ready
+        selected_gene, stored_df, violin_options, publication_ready, dataset
     ):
         """
         Create repeat length scatter plot
         """
         if stored_df is None:
-            filtered_df = df[df["gene"] == selected_gene]
+            filtered_df = df[(df["gene"] == selected_gene) & (df["dataset"] == dataset)]
         else:
             stored_df = pd.DataFrame(stored_df)
             combined_df = pd.concat([df, stored_df], ignore_index=True)
-            filtered_df = combined_df[combined_df["gene"] == selected_gene]
+            filtered_df = combined_df[
+                (combined_df["gene"] == selected_gene)
+                & (combined_df["dataset"] == dataset)
+            ]
         return plot.length_scatter(
             filtered_df,
             selected_gene,
@@ -717,15 +750,21 @@ def main():
             Output("dropdown-kmer-options", "value"),
             Output("dropdown-kmer-options", "placeholder"),
         ],
-        [Input("kmer_mode", "value"), Input("dropdown-gene-composition", "value")],
+        [
+            Input("kmer_mode", "value"),
+            Input("dropdown-gene-composition", "value"),
+            State("dropdown-dataset", "value"),
+        ],
     )
-    def tweak_kmer_options(mode, selected_gene):
+    def tweak_kmer_options(mode, selected_gene, dataset):
         """
         Depending on the kmer mode, set the options for the kmer dropdown
         """
         if mode == "raw":
             multi = True
-            options = [i for i in kmers[selected_gene].columns if i != "length"]
+            options = [
+                i for i in kmers[(dataset, selected_gene)].columns if i != "length"
+            ]
             placeholder = "Select kmers to sort on"
             value = ""
         elif mode == "sequence":
@@ -749,6 +788,7 @@ def main():
             Input("kmer_mode", "value"),
             Input("stored-df", "data"),
             Input("publication-ready", "value"),
+            State("dropdown-dataset", "value"),
         ],
     )
     def update_kmer_composition(
@@ -758,6 +798,7 @@ def main():
         kmer_mode,
         stored_df,
         publication_ready,
+        dataset,
     ):
         """
         Create a kmer composition plot
@@ -769,13 +810,16 @@ def main():
         :param publication_ready: whether to show a publication-ready plot
         """
         if len(stored_df) == 0:
-            kmer_df = kmers[selected_gene]
+            kmer_df = kmers[(dataset, selected_gene)]
         else:
             stored_df = pd.DataFrame(stored_df)
             kmer_df = pd.concat(
-                [kmers[selected_gene], parse_kmers(stored_df, repeats, selected_gene)]
+                [
+                    kmers[(dataset, selected_gene)],
+                    parse_kmers(stored_df, repeats, selected_gene, dataset),
+                ]
             ).fillna(0.0)
-        filtered_df = df[df["gene"] == selected_gene]
+        filtered_df = df[(df["gene"] == selected_gene) & (df["dataset"] == dataset)]
         return plot.kmer_plot(
             kmer_df,
             repeat_df=filtered_df,
@@ -790,18 +834,23 @@ def main():
         Output("repeat-len-slider", "min"),
         Output("repeat-len-slider", "max"),
         Input("dropdown-gene-composition", "value"),
+        State("dropdown-dataset", "value"),
     )
-    def update_slider_range(selected_gene):
+    def update_slider_range(selected_gene, dataset):
         """Update the slider based on the minimal and maximal length of the repeat"""
-        return floor(kmers[selected_gene]["length"].min()), ceil(
-            kmers[selected_gene]["length"].max()
+        return floor(kmers[(dataset, selected_gene)]["length"].min()), ceil(
+            kmers[(dataset, selected_gene)]["length"].max()
         )
 
     @app.callback(
         Output("strip-plot-log-container", "children"),
-        [Input("stored-df", "data"), Input("strip-dynamic", "value")],
+        [
+            Input("stored-df", "data"),
+            Input("strip-dynamic", "value"),
+            State("dropdown-dataset", "value"),
+        ],
     )
-    def update_stripplot(stored_df, dynamic):
+    def update_stripplot(stored_df, dynamic, dataset):
         """
         Create a strip plot of the repeat lengths
         By default, only a static image is shown
@@ -811,13 +860,18 @@ def main():
         if dynamic:
             if stored_df is None:
                 return dcc.Graph(
-                    id="strip-plot-log", figure=plot.create_strip_plot(df, log=True)
+                    id="strip-plot-log",
+                    figure=plot.create_strip_plot(
+                        df[df["dataset"] == dataset], log=True
+                    ),
                 )
             else:
                 strip_df = pd.concat([df, pd.DataFrame(stored_df)], ignore_index=True)
                 return dcc.Graph(
                     id="strip-plot-log",
-                    figure=plot.create_strip_plot(strip_df, log=True),
+                    figure=plot.create_strip_plot(
+                        strip_df[strip_df["dataset"] == dataset], log=True
+                    ),
                 )
         else:
             dash.no_update
@@ -831,9 +885,10 @@ def main():
         [
             Input("dropdown-details-individual", "value"),
             Input("dropdown-details-gene", "value"),
+            State("dropdown-dataset", "value"),
         ],
     )
-    def update_details_table(individuals, gene):
+    def update_details_table(individuals, gene, dataset):
         """
         Update the details table based on the selected individual and gene
         """
@@ -843,13 +898,16 @@ def main():
                 dash.no_update,
                 dash.no_update,
             )
-        if isinstance(
-            individuals, str
-        ):  # if only one individual is selected, it is not a list
+        # if only one individual is selected, it is not a list
+        if isinstance(individuals, str):
             individuals = [individuals]
 
         detail_df = (
-            df[(df["gene"] == gene) & (df["sample"].isin(individuals))]
+            df[
+                (df["gene"] == gene)
+                & (df["sample"].isin(individuals))
+                & (df["dataset"] == dataset)
+            ]
             .reset_index(names="sample.1")
             .drop(columns=["Group", "allele", "gene", "chrom", "hg38_path"])
             .round(1)
@@ -857,7 +915,8 @@ def main():
             .transform(
                 lambda x: (
                     ",".join([str(i) for i in set(x)])
-                    if x.name in ["sample.1", "Sex", "Superpopulation", "source"]
+                    if x.name
+                    in ["sample.1", "Sex", "Superpopulation", "source", "dataset"]
                     else ",".join([str(i) for i in list(x)])
                 )
             )
@@ -885,9 +944,10 @@ def main():
         [
             State("dropdown-details-individual", "value"),
             State("dropdown-details-gene", "value"),
+            State("dropdown-dataset", "value"),
         ],
     )
-    def return_igv(n_clicks, individuals, gene):
+    def return_igv(n_clicks, individuals, gene, dataset):
         """
         When the button is clicked, show the IGV plot for the selected individual and gene
         """
@@ -897,15 +957,16 @@ def main():
             if isinstance(individuals, str):
                 individuals = [individuals]
             chrom, start, end = repeats.coords(gene)
+            build = dataset.split("_")[1]
             return html.Div(
                 [
                     dashbio.Igv(
                         id="igv",
-                        genome="hg38_1kg",
+                        genome="hg38_1kg" if build == "hg38" else "hs1",
                         locus=f"{chrom}:{start-25}-{end+25}",
                         tracks=(
                             [
-                                make_igv_alignment_track(individual)
+                                make_igv_alignment_track(individual, build)
                                 for individual in individuals
                             ]
                         ),
@@ -913,8 +974,10 @@ def main():
                 ]
             )
 
-    def make_igv_alignment_track(individual):
+    def make_igv_alignment_track(individual, build):
         # use the df to get the hg38 url from the individual (sample)
+        if not build == "hg38":
+            sys.stderr.write("Only hg38 alignments are supported - FIXME\n")
         hg38_path = df.loc[df["sample"] == individual, "hg38_path"].values[0]
         alignment_type = hg38_path.split(".")[-1]
         index_extension = "crai" if alignment_type == "cram" else "bai"
@@ -934,11 +997,12 @@ def main():
 
     @app.callback(
         Output("download-zip", "data"),
-        [Input("download-zip-button", "n_clicks")],
+        [Input("download-zip-button", "n_clicks"), State("dropdown-dataset", "value")],
         prevent_initial_call=True,
     )
-    def download_zip(n_clicks):
-        return dcc.send_file("pathSTR_STRdust_good_samples.zip")
+    def download_zip(n_clicks, dataset):
+        caller = dataset.split("_")[0]
+        return dcc.send_file(f"pathSTR_{caller}_good_samples.zip")
 
     @app.callback(
         Output("user-data-table", "data"),
@@ -1022,8 +1086,7 @@ def get_args():
     parser = ArgumentParser(description="Get STRs from VCF")
     parser.add_argument(
         "--vcf",
-        nargs="+",
-        help="Input VCFs",
+        help="Fofn of Input VCF(s) with a column for build and genotyper, without header",
     )
     parser.add_argument(
         "--sample_info",

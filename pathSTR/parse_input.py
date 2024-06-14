@@ -8,10 +8,16 @@ from cyvcf2 import VCF
 import numpy as np
 
 
-def parse_input(vcf_list, sample_info, repeats, caller="strdust"):
-
+def parse_input(vcf_fofn, sample_info, repeats):
+    # read the file of filenames
+    fofn = pd.read_csv(
+        vcf_fofn, header=None, names=["vcf", "build", "caller"], sep="\t"
+    )
     # read in the VCFs
-    calls = [parse_vcf(vcf, repeats, caller) for vcf in vcf_list]
+    calls = [
+        parse_vcf(vcf, build, caller, repeats)
+        for (vcf, build, caller) in fofn.itertuples(index=False, name=None)
+    ]
     # make a dataframe and join with the sample info
     df = (
         pd.DataFrame(
@@ -25,6 +31,7 @@ def parse_input(vcf_list, sample_info, repeats, caller="strdust"):
                 "ref_diff",
                 "sequence",
                 "support",
+                "dataset",
             ],
         )
         .set_index("sample", drop=False)
@@ -43,7 +50,8 @@ def parse_input(vcf_list, sample_info, repeats, caller="strdust"):
             .set_index("sample")
             .rename(columns={"Superpopulation code": "Superpopulation"})
         )
-    ).assign(Group="1000 Genomes", caller=caller)
+    ).assign(Group="1000 Genomes")
+
     # for every repeat in the dataframe, divide the length by the motif length
     df["length"] = df.apply(
         lambda x: x["length"] / repeats.motif_length(x["gene"]), axis=1
@@ -62,7 +70,7 @@ def parse_input(vcf_list, sample_info, repeats, caller="strdust"):
     return df
 
 
-def parse_vcf(vcf, repeats, caller, name=None):
+def parse_vcf(vcf, build, caller, repeats, name=None):
     """
     Parse a VCF file and return a list of calls
     The chromosome and position are used to get the gene from the repeats object
@@ -71,14 +79,15 @@ def parse_vcf(vcf, repeats, caller, name=None):
 
     This function expects that the VCF contains only one sample
     """
+    caller_ = caller.lower()
     calls = []
     if name is None:
         name = os.path.basename(vcf).replace(".vcf.gz", "")
     for v in VCF(vcf):
         chrom = v.CHROM if v.CHROM.startswith("chr") else "chr" + v.CHROM
-        if caller == "strdust":
+        if caller_ == "strdust":
             gene = repeats.gene(f"{chrom}:{str(v.POS)}-{str(v.end)}")
-        elif caller == "longtr":
+        elif caller_ == "longtr":
             # LongTR may adjust the POS field to include a SNV https://github.com/gymrek-lab/LongTR/issues/8
             start = v.INFO.get("START")
             gene = repeats.gene(f"{chrom}:{str(start)}-{str(v.end)}")
@@ -87,11 +96,11 @@ def parse_vcf(vcf, repeats, caller, name=None):
         if gene is None:
             print(f"Skipping {chrom}:{str(v.POS)}-{str(v.end)} - not in bed file.")
             continue
-        if caller == "strdust":
+        if caller_ == "strdust":
             full_lengths = v.format("FRB")[0]
             ref_diff = v.format("RB")[0]
             support = v.format("SUP")[0]
-        elif caller == "longtr":
+        elif caller_ == "longtr":
             # GB is presented as 'x|y' with the difference with the reference per allele
             ref_diff = [int(i) for i in v.format("GB")[0].split("|")]
             # LongTR may adjust the POS field to include a SNV, and does not have a field for the full repeat length
@@ -101,7 +110,7 @@ def parse_vcf(vcf, repeats, caller, name=None):
             )
             # LongTR does not have a field for the support, so I use the depth, which is the total number of reads
             # this is however not the support per allele, so I duplicate the total depth for both alleles
-            support = (f"total:{v.format('DP')[0]}", f"total:{v.format('DP')[0]}")
+            support = (f"total:{v.format('DP')[0][0]}", f"total:{v.format('DP')[0][0]}")
         else:
             raise ValueError("Unexpected caller")
         sequences = parse_alts(v.ALT, v.genotypes[0])
@@ -118,6 +127,7 @@ def parse_vcf(vcf, repeats, caller, name=None):
                 ref_diff[0] if ref_diff[0] > -2147483648 else np.nan,
                 sequences[0],
                 support[0],
+                f"{caller}_{build}",
             )
         )
         calls.append(
@@ -130,6 +140,7 @@ def parse_vcf(vcf, repeats, caller, name=None):
                 ref_diff[1] if ref_diff[1] > -2147483648 else np.nan,
                 sequences[1],
                 support[1],
+                f"{caller}_{build}",
             )
         )
     return calls
@@ -141,9 +152,9 @@ def parse_alts(alts, genotype):
         if genotype[phase] in [0, -1]:
             sequences.append(None)
         elif genotype[phase] == 1:
-            sequences.append(alts[0])
+            sequences.append(alts[0] if not alts[0] == "<DEL>" else None)
         elif genotype[phase] == 2:
-            sequences.append(alts[1])
+            sequences.append(alts[1] if not alts[1] == "<DEL>" else None)
         else:
             raise ValueError("Unexpected genotype")
     return sequences
@@ -153,7 +164,7 @@ def flatten(it):
     return chain.from_iterable(it)
 
 
-def parse_uploaded_vcf(contents, uploaded_filename, repeats):
+def parse_uploaded_vcf(contents, uploaded_filename, repeats, build, caller):
     """
     Parse the uploaded VCF file and return a dataframe
     :param contents: contents of the uploaded file
@@ -175,7 +186,7 @@ def parse_uploaded_vcf(contents, uploaded_filename, repeats):
             with gzip.open(w, "wb") as f:
                 f.write(decoded)
         r_fd = os.fdopen(r, "rb")
-        calls = parse_vcf(r_fd, repeats, name=name)
+        calls = parse_vcf(r_fd, build, caller, repeats, name=name)
     except OSError:
         # this happens when the file is not a VCF, or malformed
         return None
@@ -191,6 +202,7 @@ def parse_uploaded_vcf(contents, uploaded_filename, repeats):
                 "ref_diff",
                 "sequence",
                 "support",
+                "dataset",
             ],
         )
         # for every repeat in the dataframe, divide the length and ref_diff by the motif length
@@ -210,7 +222,7 @@ def parse_uploaded_vcf(contents, uploaded_filename, repeats):
 
 def stats(df):
     """Calculate summary statistics mean and standard deviation for the data"""
-    return df.groupby("gene")["length"].agg(["mean", "std"]).round(1)
+    return df.groupby(["dataset", "gene"])["length"].agg(["mean", "std"]).round(1)
 
 
 # def get_composition(df, gene, repeats):

@@ -3,9 +3,9 @@ import pandas as pd
 import logging
 
 
-def parse_kmers(df, repeats, gene):
+def parse_kmers(df, repeats, gene, dataset):
     kmers_extracted = []
-    gene_df = df[df["gene"] == gene]
+    gene_df = df[(df["gene"] == gene) & (df["dataset"] == dataset)]
     if len(gene_df) == 0:
         return pd.DataFrame()
     motif_length = repeats.motif_length(gene)
