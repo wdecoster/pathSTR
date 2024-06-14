@@ -6,3 +6,7 @@ pathSTR_STRdust_good_samples.zip
 om_090.vcf.gz
 1000G.pathSTRdb.old
 pathSTR_STRdust_good_samples_old.zip
+genotypes.fofn
+longtr.fofn
+pathSTR_LongTR_good_samples.zip
+strdust.fofn
