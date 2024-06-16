@@ -246,13 +246,205 @@ def create_strip_plot(strip_df, log=False):
     return fig
 
 
-def kmer_plot(
+def kmer_plot_raw(
+    kmer_df,
+    selected_gene,
+    length_range=None,
+    sort=None,
+    num_columns=0,
+    publication_ready=False,
+):
+    """
+    Create a heatmap of the kmer counts per allele and per sample
+
+    """
+    if length_range:
+        min_length = length_range[0]
+        max_length = length_range[1]
+        kmer_df = kmer_df[
+            kmer_df["length"].between(min_length, max_length, inclusive="both")
+        ].drop(columns=["length"])
+    else:
+        kmer_df = kmer_df.drop(columns=["length"])
+    # sorting the columns based on their total frequency
+    kmer_frequency_sorted = (
+        kmer_df.sum(axis="index").sort_values(ascending=False).index.to_list()
+    )
+    kmer_df = kmer_df[kmer_frequency_sorted]
+
+    if sort:
+        # in the raw mode, the kmer_options indicates the kmer(s) to sort the rows on
+        kmer_df = kmer_df.sort_values(by=sort, ascending=False)
+    min_seen_kmer = 0.98 * len(kmer_df.index)
+    # only keep columns that are not < 0.01 for too many samples
+    mask1 = (kmer_df < 0.01).sum(axis=0) < (min_seen_kmer)
+    # but keep also columns that are above 0.1 for at least one sample
+    mask2 = (kmer_df > 0.1).sum(axis=0) > 0
+
+    kmer_df = kmer_df.loc[:, mask1 | mask2]
+
+    # the plot takes up a terrible lot of vertical space, so try splitting it up in <columns> columns
+    # this however could be a problem on a small screen
+    # maybe add another slider to select the number of columns
+    if num_columns:
+        columns = num_columns
+    else:
+        columns = ceil(len(kmer_df) / 500)
+    fig = make_subplots(rows=1, cols=columns)
+    batch_num = ceil(len(kmer_df) / columns)
+    for i in range(0, columns):
+        fig.add_trace(
+            px.imshow(
+                kmer_df[i * batch_num : (i + 1) * batch_num][::-1],
+                labels=dict(
+                    x="kmers",
+                    y="identifier",
+                    color="Frequency",
+                ),
+                color_continuous_scale=[(0, "white"), (1, "darkblue")],
+            ).data[0],
+            row=1,
+            col=i + 1,
+        )
+    # make the axis labels a bit smaller
+    fig.update_xaxes(tickfont_size=8, tickangle=45, side="top")
+    fig.update_yaxes(tickfont_size=8)
+
+    height = 6000 if columns > 1 else len(kmer_df) * 12
+
+    fig.update_layout(
+        dict(
+            title_text=f"Kmer frequency for {selected_gene} repeat",
+            plot_bgcolor="rgba(0, 0, 0, 0)",
+            paper_bgcolor="rgba(0, 0, 0, 0)",
+            height=height,
+            width=height / 4,
+        )
+    )
+    fig.update_coloraxes(colorscale="Blues")
+    if publication_ready:
+        fig.update_layout(
+            font=dict(size=16),
+            legend=dict(
+                title_font=dict(size=16),
+                font=dict(size=16),
+            ),
+            plot_bgcolor="white",
+            width=800,
+            height=800,
+        )
+    return fig
+
+
+def kmer_plot_collapsed(
+    kmer_df,
+    selected_gene,
+    length_range=None,
+    min_group_size=0,
+    publication_ready=False,
+):
+    if length_range:
+        min_length = length_range[0]
+        max_length = length_range[1]
+        kmer_df = kmer_df[
+            kmer_df["length"].between(min_length, max_length, inclusive="both")
+        ].drop(columns=["length"])
+    else:
+        kmer_df = kmer_df.drop(columns=["length"])
+    # sorting the columns based on their total frequency
+    kmer_frequency_sorted = (
+        kmer_df.sum(axis="index").sort_values(ascending=False).index.to_list()
+    )
+    kmer_df = kmer_df[kmer_frequency_sorted]
+    # kmers are thrown out faster
+    min_seen_kmer = 0.90 * len(kmer_df.index)
+    # only keep columns that are not < 0.01 for too many samples
+    mask1 = (kmer_df < 0.05).sum(axis=0) < (min_seen_kmer)
+    # but keep also columns that are above 0.1 for at least 5 samples
+    mask2 = (kmer_df > 0.1).sum(axis=0) > 5
+
+    kmer_df = kmer_df.loc[:, mask1 | mask2]
+
+    # round every kmer count to the nearest 0.1
+    kmer_df = kmer_df.map(lambda x: round(x * 10) / 10)
+    # group all samples together that have identical kmers numbers
+    collapsed = (
+        kmer_df.reset_index()
+        .groupby(kmer_df.columns.to_list())["identifier"]
+        .apply(",".join)
+        .reset_index()
+    )
+    collapsed["count"] = collapsed["identifier"].apply(lambda x: len(x.split(",")))
+    collapsed = collapsed[collapsed["count"] > min_group_size]
+
+    collapsed = collapsed.sort_values(by="count", ascending=False).reset_index(
+        drop=True
+    )
+    # create a heatmap with a marginal bar chart to indicate the number of carriers
+    fig = make_subplots(
+        rows=1,
+        cols=2,
+        column_widths=[0.8, 0.2],
+        shared_yaxes=True,
+        subplot_titles=("Kmer frequency", "Number of carriers"),
+    )
+
+    fig.add_trace(
+        px.imshow(
+            collapsed.drop(columns=["identifier", "count"]),
+            labels=dict(x="kmers", y="group", color="Frequency"),
+            color_continuous_scale="Blues",
+        ).data[0],
+        row=1,
+        col=1,
+    )
+    fig.add_trace(
+        px.bar(
+            x=collapsed["count"][::-1],
+            y=collapsed.index[::-1],
+            orientation="h",
+        ).data[0],
+        row=1,
+        col=2,
+    )
+
+    # make the axis labels a bit smaller
+    fig.update_xaxes(tickfont_size=8, tickangle=45)
+    fig.update_yaxes(visible=False, showticklabels=False)
+    fig.update_layout(
+        {
+            "title_text": f"Kmer frequency for {selected_gene} repeat",
+            "plot_bgcolor": "white",
+            "paper_bgcolor": "white",
+            "height": 1200,
+            "width": 1200,
+        }
+    )
+
+    fig["layout"]["xaxis2"].update(title="Number of carriers")
+    fig.update_coloraxes(colorscale=[(0, "white"), (1, "darkblue")])
+    if publication_ready:
+        fig.update_layout(
+            font=dict(size=16),
+            legend=dict(
+                title_font=dict(size=16),
+                font=dict(size=16),
+            ),
+            plot_bgcolor="white",
+            width=800,
+            height=800,
+        )
+        # increase font size of axis labels
+        fig.update_xaxes(tickfont_size=12)
+    return fig
+
+
+def kmer_plot_sequence(
     kmer_df,
     repeat_df,
     selected_gene,
-    mode="collapsed",
     length_range=None,
-    kmer_options=None,
+    direction="left-to-right",
     publication_ready=False,
 ):
     """
@@ -281,263 +473,110 @@ def kmer_plot(
         kmer_df.sum(axis="index").sort_values(ascending=False).index.to_list()
     )
     kmer_df = kmer_df[kmer_frequency_sorted]
-    if mode == "raw":
-        if kmer_options:
-            # in the raw mode, the kmer_options indicates the kmer(s) to sort the rows on
-            kmer_df = kmer_df.sort_values(by=kmer_options, ascending=False)
-        min_seen_kmer = 0.98 * len(kmer_df.index)
-        # only keep columns that are not < 0.01 for too many samples
-        mask1 = (kmer_df < 0.01).sum(axis=0) < (min_seen_kmer)
-        # but keep also columns that are above 0.1 for at least one sample
-        mask2 = (kmer_df > 0.1).sum(axis=0) > 0
 
-        kmer_df = kmer_df.loc[:, mask1 | mask2]
+    # using only the 10 most frequent kmers by limiting kmer_df to the first 10 columns
+    # assign a color to each kmer
+    colors = [
+        "rgb(31, 119, 180)",
+        "rgb(255, 127, 14)",
+        "rgb(44, 160, 44)",
+        "rgb(214, 39, 40)",
+        "rgb(148, 103, 189)",
+        "rgb(140, 86, 75)",
+        "rgb(227, 119, 194)",
+        "rgb(127, 127, 127)",
+        "rgb(188, 189, 34)",
+        "rgb(23, 190, 207)",
+    ]
+    kmer_dict = {k: c for k, c in zip(kmer_df.columns[:10], colors)}
+    inverse_dict = {v: k for k, v in kmer_dict.items()}
+    inverse_dict["rgb(128, 128, 128)"] = "other"
 
-        # the plot takes up a terrible lot of vertical space, so try splitting it up in <columns> columns
-        # this however could be a problem on a small screen
-        # maybe add another slider to select the number of columns
-        columns = ceil(len(kmer_df) / 500)
-        fig = make_subplots(rows=1, cols=columns)
-        batch_num = ceil(len(kmer_df) / columns)
-        for i in range(0, columns):
-            fig.add_trace(
-                px.imshow(
-                    kmer_df[i * batch_num : (i + 1) * batch_num][::-1],
-                    labels=dict(
-                        x="kmers",
-                        y="identifier",
-                        color="Frequency",
-                    ),
-                    color_continuous_scale=[(0, "white"), (1, "darkblue")],
-                ).data[0],
-                row=1,
-                col=i + 1,
-            )
-        # make the axis labels a bit smaller
-        fig.update_xaxes(tickfont_size=8, tickangle=45, side="top")
-        fig.update_yaxes(tickfont_size=8)
-
-        height = 6000 if columns > 1 else len(kmer_df) * 12
-
-        fig.update_layout(
-            dict(
-                title_text=f"Kmer frequency for {selected_gene} repeat",
-                plot_bgcolor="rgba(0, 0, 0, 0)",
-                paper_bgcolor="rgba(0, 0, 0, 0)",
-                height=height,
-                width=height / 4,
-            )
+    # for the alt sequence of every individual,
+    # plot the order of the 10 most frequent kmers, with others in grey
+    if length_range:
+        min_length = length_range[0]
+        max_length = length_range[1]
+        repeat_df = (
+            repeat_df[
+                repeat_df["length"].between(min_length, max_length, inclusive="both")
+            ]
+            .sort_values(by="length", ascending=False)
+            .dropna(subset=["sequence"])
         )
-        fig.update_coloraxes(colorscale="Blues")
-        if publication_ready:
-            fig.update_layout(
-                font=dict(size=16),
-                legend=dict(
-                    title_font=dict(size=16),
-                    font=dict(size=16),
-                ),
-                plot_bgcolor="white",
-                width=800,
-                height=800,
-            )
-        return fig
-    elif mode == "collapsed":
-        # kmers are thrown out faster
-        min_seen_kmer = 0.90 * len(kmer_df.index)
-        # only keep columns that are not < 0.01 for too many samples
-        mask1 = (kmer_df < 0.05).sum(axis=0) < (min_seen_kmer)
-        # but keep also columns that are above 0.1 for at least 5 samples
-        mask2 = (kmer_df > 0.1).sum(axis=0) > 5
-
-        kmer_df = kmer_df.loc[:, mask1 | mask2]
-
-        # round every kmer count to the nearest 0.1
-        kmer_df = kmer_df.map(lambda x: round(x * 10) / 10)
-        # group all samples together that have identical kmers numbers
-        collapsed = (
-            kmer_df.reset_index()
-            .groupby(kmer_df.columns.to_list())["identifier"]
-            .apply(",".join)
-            .reset_index()
-        )
-        collapsed["count"] = collapsed["identifier"].apply(lambda x: len(x.split(",")))
-        if kmer_options == "hide singletons":
-            # in the collapsed mode, the kmer_option indicates that singletons should be dropped or kept
-            collapsed = collapsed[collapsed["count"] > 1]
-
-        collapsed = collapsed.sort_values(by="count", ascending=False).reset_index(
-            drop=True
-        )
-        # create a heatmap with a marginal bar chart to indicate the number of carriers
-        fig = make_subplots(
-            rows=1,
-            cols=2,
-            column_widths=[0.8, 0.2],
-            shared_yaxes=True,
-            subplot_titles=("Kmer frequency", "Number of carriers"),
-        )
-
-        fig.add_trace(
-            px.imshow(
-                collapsed.drop(columns=["identifier", "count"]),
-                labels=dict(x="kmers", y="group", color="Frequency"),
-                color_continuous_scale="Blues",
-            ).data[0],
-            row=1,
-            col=1,
-        )
-        fig.add_trace(
-            px.bar(
-                x=collapsed["count"][::-1],
-                y=collapsed.index[::-1],
-                orientation="h",
-            ).data[0],
-            row=1,
-            col=2,
-        )
-
-        # make the axis labels a bit smaller
-        fig.update_xaxes(tickfont_size=8, tickangle=45)
-        fig.update_yaxes(visible=False, showticklabels=False)
-        fig.update_layout(
-            {
-                "title_text": f"Kmer frequency for {selected_gene} repeat",
-                "plot_bgcolor": "white",
-                "paper_bgcolor": "white",
-                "height": 1200,
-                "width": 1200,
-            }
-        )
-
-        fig["layout"]["xaxis2"].update(title="Number of carriers")
-        fig.update_coloraxes(colorscale=[(0, "white"), (1, "darkblue")])
-        if publication_ready:
-            fig.update_layout(
-                font=dict(size=16),
-                legend=dict(
-                    title_font=dict(size=16),
-                    font=dict(size=16),
-                ),
-                plot_bgcolor="white",
-                width=800,
-                height=800,
-            )
-            # increase font size of axis labels
-            fig.update_xaxes(tickfont_size=12)
-        return fig
-    elif mode == "sequence":
-        # using only the 10 most frequent kmers by limiting kmer_df to the first 10 columns
-        # assign a color to each kmer
-        colors = [
-            "rgb(31, 119, 180)",
-            "rgb(255, 127, 14)",
-            "rgb(44, 160, 44)",
-            "rgb(214, 39, 40)",
-            "rgb(148, 103, 189)",
-            "rgb(140, 86, 75)",
-            "rgb(227, 119, 194)",
-            "rgb(127, 127, 127)",
-            "rgb(188, 189, 34)",
-            "rgb(23, 190, 207)",
-        ]
-        kmer_dict = {k: c for k, c in zip(kmer_df.columns[:10], colors)}
-        inverse_dict = {v: k for k, v in kmer_dict.items()}
-        inverse_dict["rgb(128, 128, 128)"] = "other"
-
-        # for the alt sequence of every individual,
-        # plot the order of the 10 most frequent kmers, with others in grey
-        if length_range:
-            min_length = length_range[0]
-            max_length = length_range[1]
-            repeat_df = (
-                repeat_df[
-                    repeat_df["length"].between(
-                        min_length, max_length, inclusive="both"
-                    )
-                ]
-                .sort_values(by="length", ascending=False)
-                .dropna(subset=["sequence"])
-            )
-        else:
-            repeat_df = repeat_df.sort_values(by="length", ascending=False).dropna(
-                subset=["sequence"]
-            )
-        # draw a scatter plot showing for each sample and allele the order of the kmers in the sequence
-        # replace in the sequence from frequent to less frequent the kmers with their color
-        repeat_df["seq_colored"] = repeat_df["sequence"]
-        for k, c in kmer_dict.items():
-            repeat_df["seq_colored"] = repeat_df["seq_colored"].str.replace(
-                k, f"{c};" * len(k)
-            )
-        # replace the remaining nucleotides with grey
-        repeat_df["seq_colored"] = repeat_df["seq_colored"].str.replace(
-            r"[ACTG]", "rgb(128, 128, 128);", regex=True
-        )
-        # remove the last semicolon
-        repeat_df["seq_colored"] = repeat_df["seq_colored"].str.rstrip(";")
-        if kmer_options and kmer_options == "right-to-left":
-            # in the sequence mode, the kmer_options indicates the alignment of the plot relative to the x-axis
-            # split the seq_colored into a list and reverse the list of colors
-            repeat_df["seq_colored"] = (
-                repeat_df["seq_colored"].str.split(";").apply(lambda x: x[::-1])
-            )
-        else:
-            # split the seq_colored into a list
-            repeat_df["seq_colored"] = repeat_df["seq_colored"].str.split(";")
-        # add a range column to the dataframe, to enumerate the nucleotides
-        repeat_df["range"] = repeat_df["seq_colored"].apply(
-            lambda x: list(range(len(x)))
-        )
-        repeat_df["identifier"] = repeat_df["sample"] + "_" + repeat_df["allele"]
-        # explode the seq_colored and range columns for plotting
-        repeat_colors = repeat_df[
-            ["identifier", "sequence", "seq_colored", "range"]
-        ].explode(["seq_colored", "range"])
-        # convert colors back to kmers
-        repeat_colors["kmer"] = repeat_colors["seq_colored"].apply(
-            lambda x: inverse_dict[x]
-        )
-
-        fig = px.scatter(
-            repeat_colors,
-            x="range",
-            y="identifier",
-            color="kmer",
-            color_discrete_sequence=repeat_colors["seq_colored"].unique(),
-            hover_data=["kmer"],
-            labels={
-                "range": "Nucleotide position in repeat",
-                "identifier": "Sample/allele",
-            },
-            category_orders={"identifier": repeat_df["identifier"][::-1]},
-            title=f"Sequence of {selected_gene} repeat",
-        )
-        fig.update_traces(marker=dict(size=3))
-        # make the y axis labels a bit smaller
-        fig.update_yaxes(tickfont_size=8)
-        if kmer_options:
-            # in the sequence mode, the kmer_options indicates the alignment of the plot relative to the x-axis
-            if kmer_options == "right-to-left":
-                fig.update_layout(xaxis_autorange="reversed")
-        # set the height of the plot depending on the number of samples
-        # but this leads to weird things (plot points shifting up?!) so is disabled for now
-        # fig.update_layout(
-        #     height=max(len(repeat_df) * 10, 500),
-        #     width=1200,
-        # )
-        if publication_ready:
-            fig.update_layout(
-                font=dict(size=16),
-                legend=dict(
-                    title_font=dict(size=16),
-                    font=dict(size=16),
-                ),
-                plot_bgcolor="rgba(0, 0, 0, 0)",
-                paper_bgcolor="rgba(0, 0, 0, 0)",
-            )
-        # change the size of the dots in the legend
-        fig.update_layout(legend={"itemsizing": "constant"})
-        return fig
     else:
-        sys.stderr.write("Invalid mode for kmer plot\n")
-        return None
+        repeat_df = repeat_df.sort_values(by="length", ascending=False).dropna(
+            subset=["sequence"]
+        )
+    # draw a scatter plot showing for each sample and allele the order of the kmers in the sequence
+    # replace in the sequence from frequent to less frequent the kmers with their color
+    repeat_df["seq_colored"] = repeat_df["sequence"]
+    for k, c in kmer_dict.items():
+        repeat_df["seq_colored"] = repeat_df["seq_colored"].str.replace(
+            k, f"{c};" * len(k)
+        )
+    # replace the remaining nucleotides with grey
+    repeat_df["seq_colored"] = repeat_df["seq_colored"].str.replace(
+        r"[ACTG]", "rgb(128, 128, 128);", regex=True
+    )
+    # remove the last semicolon
+    repeat_df["seq_colored"] = repeat_df["seq_colored"].str.rstrip(";")
+    if direction == "right-to-left":
+        # in the sequence mode, the kmer_options indicates the alignment of the plot relative to the x-axis
+        # split the seq_colored into a list and reverse the list of colors
+        repeat_df["seq_colored"] = (
+            repeat_df["seq_colored"].str.split(";").apply(lambda x: x[::-1])
+        )
+    else:
+        # split the seq_colored into a list
+        repeat_df["seq_colored"] = repeat_df["seq_colored"].str.split(";")
+    # add a range column to the dataframe, to enumerate the nucleotides
+    repeat_df["range"] = repeat_df["seq_colored"].apply(lambda x: list(range(len(x))))
+    repeat_df["identifier"] = repeat_df["sample"] + "_" + repeat_df["allele"]
+    # explode the seq_colored and range columns for plotting
+    repeat_colors = repeat_df[
+        ["identifier", "sequence", "seq_colored", "range"]
+    ].explode(["seq_colored", "range"])
+    # convert colors back to kmers
+    repeat_colors["kmer"] = repeat_colors["seq_colored"].apply(
+        lambda x: inverse_dict[x]
+    )
+
+    fig = px.scatter(
+        repeat_colors,
+        x="range",
+        y="identifier",
+        color="kmer",
+        color_discrete_sequence=repeat_colors["seq_colored"].unique(),
+        hover_data=["kmer"],
+        labels={
+            "range": "Nucleotide position in repeat",
+            "identifier": "Sample/allele",
+        },
+        category_orders={"identifier": repeat_df["identifier"][::-1]},
+        title=f"Sequence of {selected_gene} repeat",
+    )
+    fig.update_traces(marker=dict(size=3))
+    # make the y axis labels a bit smaller
+    fig.update_yaxes(tickfont_size=8)
+    if direction == "right-to-left":
+        fig.update_layout(xaxis_autorange="reversed")
+    # set the height of the plot depending on the number of samples
+    # but this leads to weird things (plot points shifting up?!) so is disabled for now
+    # fig.update_layout(
+    #     height=max(len(repeat_df) * 10, 500),
+    #     width=1200,
+    # )
+    if publication_ready:
+        fig.update_layout(
+            font=dict(size=16),
+            legend=dict(
+                title_font=dict(size=16),
+                font=dict(size=16),
+            ),
+            plot_bgcolor="rgba(0, 0, 0, 0)",
+            paper_bgcolor="rgba(0, 0, 0, 0)",
+        )
+    # change the size of the dots in the legend
+    fig.update_layout(legend={"itemsizing": "constant"})
+    return fig

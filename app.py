@@ -7,6 +7,9 @@ import dash
 from dash import Dash, html, dcc, dash_table
 from dash.dependencies import Input, Output, State
 import dash_bootstrap_components as dbc
+import dash_daq as daq
+
+
 from argparse import ArgumentParser
 import pathSTR.parse_input as parse
 from pathSTR.repeats import Repeats
@@ -232,57 +235,203 @@ def main():
                                     dbc.Row(
                                         [
                                             dbc.Col(
+                                                html.Label(
+                                                    "Select visualization mode:"
+                                                ),
+                                                width=3,
+                                            ),
+                                            dbc.Col(
+                                                dcc.RadioItems(
+                                                    id="kmer_mode",
+                                                    options=[
+                                                        {
+                                                            "label": "Collapsed",
+                                                            "value": "collapsed",
+                                                        },
+                                                        {
+                                                            "label": "Raw",
+                                                            "value": "raw",
+                                                        },
+                                                        {
+                                                            "label": "Sequence",
+                                                            "value": "sequence",
+                                                        },
+                                                    ],
+                                                    value="collapsed",
+                                                    inline=True,
+                                                    style={"display": "flex"},
+                                                ),
+                                                width=3,
+                                            ),
+                                        ],
+                                        align="center",
+                                    ),
+                                    dbc.Row(
+                                        [
+                                            dbc.Col(
+                                                html.Label("Select gene:"), width=3
+                                            ),
+                                            dbc.Col(
                                                 dcc.Dropdown(
                                                     id="dropdown-gene-composition",
                                                     options=gene_options,
                                                     value=gene_options[0]["value"],
                                                     clearable=False,
                                                 ),
+                                                width=2,
                                             ),
-                                            dbc.Col(
-                                                dcc.Dropdown(id="dropdown-kmer-options")
-                                            ),
-                                        ]
-                                    )
+                                        ],
+                                        align="center",
+                                    ),
                                 ]
                             ),
                             dbc.Container(
                                 [
                                     dbc.Row(
                                         [
-                                            dcc.RadioItems(
-                                                id="kmer_mode",
-                                                options=[
-                                                    {
-                                                        "label": "Collapsed",
-                                                        "value": "collapsed",
-                                                    },
-                                                    {"label": "Raw", "value": "raw"},
-                                                    {
-                                                        "label": "Sequence",
-                                                        "value": "sequence",
-                                                    },
+                                            html.Div(
+                                                id="kmer-options-container",
+                                                children=[
+                                                    html.Div(
+                                                        id="kmer-options-collapsed",
+                                                        children=[
+                                                            dbc.Row(
+                                                                [
+                                                                    dbc.Col(
+                                                                        html.Label(
+                                                                            "Minimal group size:"
+                                                                        ),
+                                                                        width=3,
+                                                                    ),
+                                                                    dbc.Col(
+                                                                        daq.NumericInput(
+                                                                            id="kmer-options-group-min-size",
+                                                                            value=0,
+                                                                        ),
+                                                                        width="auto",
+                                                                    ),
+                                                                ],
+                                                                align="center",
+                                                            )
+                                                        ],
+                                                        style={"display": "block"},
+                                                    ),
+                                                    html.Div(
+                                                        id="kmer-options-sequence",
+                                                        children=[
+                                                            dbc.Row(
+                                                                [
+                                                                    dbc.Col(
+                                                                        html.Label(
+                                                                            "Direction:"
+                                                                        ),
+                                                                        width=3,
+                                                                    ),
+                                                                    dbc.Col(
+                                                                        dcc.Dropdown(
+                                                                            id="kmer-options-sequence-direction",
+                                                                            options=[
+                                                                                "left-to-right",
+                                                                                "right-to-left",
+                                                                            ],
+                                                                            multi=False,
+                                                                            value="left-to-right",
+                                                                            placeholder="",
+                                                                        ),
+                                                                        width=2,
+                                                                    ),
+                                                                ],
+                                                                align="center",
+                                                            )
+                                                        ],
+                                                        style={"display": "none"},
+                                                    ),
+                                                    html.Div(
+                                                        id="kmer-options-raw",
+                                                        children=[
+                                                            dbc.Row(
+                                                                [
+                                                                    dbc.Col(
+                                                                        html.Label(
+                                                                            "Kmer to sort heatmap for:"
+                                                                        ),
+                                                                        width=3,
+                                                                    ),
+                                                                    dbc.Col(
+                                                                        dcc.Dropdown(
+                                                                            id="kmer-options-raw-sort",
+                                                                        ),
+                                                                        width=3,
+                                                                    ),
+                                                                ],
+                                                                align="center",
+                                                            ),
+                                                            dbc.Row(
+                                                                [
+                                                                    dbc.Col(
+                                                                        html.Label(
+                                                                            "Number of columns to split the heatmap on:"
+                                                                        ),
+                                                                        width=3,
+                                                                    ),
+                                                                    dbc.Col(
+                                                                        daq.NumericInput(
+                                                                            id="kmer-options-raw-num-columns",
+                                                                            value="",
+                                                                        ),
+                                                                        width=3,
+                                                                    ),
+                                                                ],
+                                                                align="center",
+                                                            ),
+                                                        ],
+                                                        style={"display": "none"},
+                                                    ),
                                                 ],
-                                                value="collapsed",
-                                                inline=True,
                                             ),
-                                            html.Label(
-                                                "Minimal repeat length [in units]:"
-                                            ),
-                                            dcc.RangeSlider(
-                                                id="repeat-len-slider",
+                                            dbc.Row(
+                                                [
+                                                    dbc.Col(
+                                                        html.Label(
+                                                            "Minimal repeat length [in units]:"
+                                                        ),
+                                                        width=3,
+                                                    ),
+                                                    dbc.Col(
+                                                        dcc.RangeSlider(
+                                                            id="repeat-len-slider",
+                                                        ),
+                                                        width=8,
+                                                    ),
+                                                ],
+                                                align="center",
                                             ),
                                         ],
                                     ),
                                 ],
                             ),
                             html.Div(
-                                dcc.Graph(id="kmer-composition"),
-                                style={
-                                    "display": "flex",
-                                    "justifyContent": "center",
-                                    "alignItems": "center",
-                                },
+                                children=[
+                                    html.Div(
+                                        id="kmer-composition-raw-container",
+                                        children=[dcc.Graph(id="kmer-composition-raw")],
+                                        style={"display": "none"},
+                                    ),
+                                    html.Div(
+                                        id="kmer-composition-sequence-container",
+                                        children=[
+                                            dcc.Graph(id="kmer-composition-sequence")
+                                        ],
+                                        style={"display": "none"},
+                                    ),
+                                    html.Div(
+                                        id="kmer-composition-collapsed-container",
+                                        children=[
+                                            dcc.Graph(id="kmer-composition-collapsed")
+                                        ],
+                                        style={"display": "block"},
+                                    ),
+                                ]
                             ),
                         ],
                     ),
@@ -456,8 +605,11 @@ def main():
                                                 href="https://github.com/wdecoster/pathSTR/issues",
                                                 target="_blank",
                                             ),
-                                            " or by sending me an email.",
-                                        ]
+                                            " or by sending me an email. The repository also contains documentation for the aSTRonaut companion script, for a more flexible kmer visualization in the ",
+                                            html.I("sequence"),
+                                            " mode.",
+                                        ],
+                                        style={"textAlign": "justify"},
                                     ),
                                     html.P(
                                         [
@@ -500,11 +652,12 @@ def main():
                                                 target="_blank",
                                             ),
                                             ".",
-                                        ]
+                                        ],
+                                        style={"textAlign": "justify"},
                                     ),
                                     html.P(
                                         [
-                                            "You can upload your own STRdust VCF.gz file(s) to show alongside the 1000 Genomes data for comparison, but this is currently limited to 100kb files, please let me know if more would be required. Note that as the app cannot figure out the sex of your individuals, males will show two alleles on haploid chromosomes. This is corrected for samples in the 1000 Genomes cohort. "
+                                            "You can upload your own VCF.gz file(s) (genotyped with STRdust or LongTR) to show alongside the 1000 Genomes data for comparison. Uploading data is currently limited to 100kb files, please let me know if more would be required. For genotyping with STRdust, use the --pathogenic flag. Note that as the app cannot figure out the sex of your individuals, males will show two alleles on haploid chromosomes. This is corrected for samples in the 1000 Genomes cohort. "
                                             "The repeat coordinates and motifs used in this app are obtained from ",
                                             html.A(
                                                 "STRchive",
@@ -532,11 +685,26 @@ def main():
                                 inputStyle={"margin-left": "15px"},
                             ),
                             # add a dropdown for selecting the dataset, with default STRdust
-                            dcc.Dropdown(
-                                id="dropdown-dataset",
-                                options=dataset_options,
-                                value="STRdust_hg38",
-                                clearable=False,
+                            dbc.Row(
+                                [
+                                    dbc.Col(
+                                        html.Label(
+                                            "Select dataset for pathSTR:",
+                                            style={"margin-left": "15px"},
+                                        ),
+                                        width=3,
+                                    ),
+                                    dbc.Col(
+                                        dcc.Dropdown(
+                                            id="dropdown-dataset",
+                                            options=dataset_options,
+                                            value="STRdust_hg38",
+                                            clearable=False,
+                                        ),
+                                        width=3,
+                                    ),
+                                ],
+                                align="center",
                             ),
                             html.H1("Downloads", className="my-3"),
                             html.Div(
@@ -742,93 +910,235 @@ def main():
             publication_ready="publication-ready" in publication_ready,
         )
 
-    # change the settings for the kmer dropdown based on the mode
+    # Create a callback that changes the visibility of the kmer options and kmer-plots based on the mode
     @app.callback(
         [
-            Output("dropdown-kmer-options", "multi"),
-            Output("dropdown-kmer-options", "options"),
-            Output("dropdown-kmer-options", "value"),
-            Output("dropdown-kmer-options", "placeholder"),
+            Output("kmer-options-raw", "style"),
+            Output("kmer-options-sequence", "style"),
+            Output("kmer-options-collapsed", "style"),
+            Output("kmer-composition-raw-container", "style"),
+            Output("kmer-composition-sequence-container", "style"),
+            Output("kmer-composition-collapsed-container", "style"),
         ],
-        [
-            Input("kmer_mode", "value"),
-            Input("dropdown-gene-composition", "value"),
-            State("dropdown-dataset", "value"),
-        ],
+        Input("kmer_mode", "value"),
     )
-    def tweak_kmer_options(mode, selected_gene, dataset):
+    def show_kmer_options(mode):
         """
-        Depending on the kmer mode, set the options for the kmer dropdown
+        Show the corret kmer options and correct plot based on the selected mode
+        I get it, this is rather awful
         """
         if mode == "raw":
-            multi = True
-            options = [
-                i for i in kmers[(dataset, selected_gene)].columns if i != "length"
-            ]
-            placeholder = "Select kmers to sort on"
-            value = ""
+            return (
+                {"display": "block"},
+                {"display": "none"},
+                {"display": "none"},
+                {
+                    "display": "flex",
+                    "justifyContent": "center",
+                    "alignItems": "center",
+                },
+                {"display": "none"},
+                {"display": "none"},
+            )
         elif mode == "sequence":
-            multi = False
-            options = ["left-to-right", "right-to-left"]
-            placeholder = ""
-            value = "left-to-right"
+            return (
+                {"display": "none"},
+                {"display": "block"},
+                {"display": "none"},
+                {"display": "none"},
+                {"display": "flex", "justifyContent": "center", "alignItems": "center"},
+                {"display": "none"},
+            )
         else:
-            multi = False
-            options = ["hide singletons", "show everything"]
-            placeholder = ""
-            value = "show everything"
-        return multi, options, value, placeholder
+            return (
+                {"display": "none"},
+                {"display": "none"},
+                {"display": "block"},
+                {"display": "none"},
+                {"display": "none"},
+                {"display": "flex", "justifyContent": "center", "alignItems": "center"},
+            )
 
     @app.callback(
-        Output("kmer-composition", "figure"),
+        [
+            Output("kmer-options-raw-sort", "options"),
+        ],
         [
             Input("dropdown-gene-composition", "value"),
-            Input("dropdown-kmer-options", "value"),
-            Input("repeat-len-slider", "value"),
-            Input("kmer_mode", "value"),
-            Input("stored-df", "data"),
-            Input("publication-ready", "value"),
             State("dropdown-dataset", "value"),
         ],
     )
-    def update_kmer_composition(
-        selected_gene,
-        kmer_options,
-        length_range,
+    def specify_kmers_to_sort_on(selected_gene, dataset):
+        """
+        Return the options for the kmer dropdown in the raw mode
+        """
+        return ([i for i in kmers[(dataset, selected_gene)].columns if i != "length"],)
+
+    @app.callback(
+        Output("kmer-composition-raw", "figure"),
+        [
+            Input("kmer_mode", "value"),
+            Input("dropdown-gene-composition", "value"),
+            Input("repeat-len-slider", "value"),
+            Input("stored-df", "data"),
+            Input("kmer-options-raw-sort", "value"),
+            Input("kmer-options-raw-num-columns", "value"),
+            State("publication-ready", "value"),
+            State("dropdown-dataset", "value"),
+        ],
+        suppress_callback_exceptions=True,
+    )
+    def update_kmer_composition_raw(
         kmer_mode,
+        selected_gene,
+        length_range,
         stored_df,
+        raw_sort,
+        num_columns,
         publication_ready,
         dataset,
     ):
         """
         Create a kmer composition plot
-        :param selected_gene: gene to show the kmer composition for
-        :param kmer_options: mode-specific options for the kmer composition plot
-        :param length_range: minimal and maximal length of the repeats to show
         :param kmer_mode: mode to show the kmer composition plot in (raw, collapsed or sequence)
+        :param selected_gene: gene to show the kmer composition for
+        :param length_range: minimal and maximal length of the repeats to show
         :param stored_df: uploaded data
+        :param raw_sort: column to sort the raw kmer composition on
         :param publication_ready: whether to show a publication-ready plot
+        :param dataset: dataset to show the kmer composition for
         """
-        if len(stored_df) == 0:
-            kmer_df = kmers[(dataset, selected_gene)]
+        if kmer_mode == "raw":
+            if len(stored_df) == 0:
+                kmer_df = kmers[(dataset, selected_gene)]
+            else:
+                stored_df = pd.DataFrame(stored_df)
+                kmer_df = pd.concat(
+                    [
+                        kmers[(dataset, selected_gene)],
+                        parse_kmers(stored_df, repeats, selected_gene, dataset),
+                    ]
+                ).fillna(0.0)
+            return plot.kmer_plot_raw(
+                kmer_df,
+                selected_gene=selected_gene,
+                length_range=length_range,
+                sort=raw_sort,
+                num_columns=num_columns,
+                publication_ready="publication-ready" in publication_ready,
+            )
         else:
-            stored_df = pd.DataFrame(stored_df)
-            kmer_df = pd.concat(
-                [
-                    kmers[(dataset, selected_gene)],
-                    parse_kmers(stored_df, repeats, selected_gene, dataset),
-                ]
-            ).fillna(0.0)
-        filtered_df = df[(df["gene"] == selected_gene) & (df["dataset"] == dataset)]
-        return plot.kmer_plot(
-            kmer_df,
-            repeat_df=filtered_df,
-            selected_gene=selected_gene,
-            mode=kmer_mode,
-            length_range=length_range,
-            kmer_options=kmer_options,
-            publication_ready="publication-ready" in publication_ready,
-        )
+            return dash.no_update
+
+    @app.callback(
+        Output("kmer-composition-collapsed", "figure"),
+        [
+            Input("kmer_mode", "value"),
+            Input("dropdown-gene-composition", "value"),
+            Input("repeat-len-slider", "value"),
+            Input("stored-df", "data"),
+            Input("kmer-options-group-min-size", "value"),
+            State("publication-ready", "value"),
+            State("dropdown-dataset", "value"),
+        ],
+        suppress_callback_exceptions=True,
+    )
+    def update_kmer_composition_collapsed(
+        kmer_mode,
+        selected_gene,
+        length_range,
+        stored_df,
+        collapsed_group_min_size,
+        publication_ready,
+        dataset,
+    ):
+        """
+        Create a kmer composition plot
+        :param kmer_mode: mode to show the kmer composition plot in (raw, collapsed or sequence)
+        :param selected_gene: gene to show the kmer composition for
+        :param length_range: minimal and maximal length of the repeats to show
+        :param stored_df: uploaded data
+        :param collapsed_group_min_size: minimal group size to show in the collapsed mode
+        :param raw_sort: column to sort the raw kmer composition on
+        :param sequence_direction: direction to show the sequence kmer composition in
+        :param publication_ready: whether to show a publication-ready plot
+        :param dataset: dataset to show the kmer composition for
+        """
+        if kmer_mode == "collapsed":
+            if len(stored_df) == 0:
+                kmer_df = kmers[(dataset, selected_gene)]
+            else:
+                stored_df = pd.DataFrame(stored_df)
+                kmer_df = pd.concat(
+                    [
+                        kmers[(dataset, selected_gene)],
+                        parse_kmers(stored_df, repeats, selected_gene, dataset),
+                    ]
+                ).fillna(0.0)
+            return plot.kmer_plot_collapsed(
+                kmer_df,
+                selected_gene=selected_gene,
+                length_range=length_range,
+                min_group_size=collapsed_group_min_size,
+                publication_ready="publication-ready" in publication_ready,
+            )
+        else:
+            return dash.no_update
+
+    @app.callback(
+        Output("kmer-composition-sequence", "figure"),
+        [
+            Input("kmer_mode", "value"),
+            Input("dropdown-gene-composition", "value"),
+            Input("repeat-len-slider", "value"),
+            Input("stored-df", "data"),
+            Input("kmer-options-sequence-direction", "value"),
+            State("publication-ready", "value"),
+            State("dropdown-dataset", "value"),
+        ],
+        suppress_callback_exceptions=True,
+    )
+    def update_kmer_composition_sequence(
+        kmer_mode,
+        selected_gene,
+        length_range,
+        stored_df,
+        sequence_direction,
+        publication_ready,
+        dataset,
+    ):
+        """
+        Create a kmer composition plot
+        :param kmer_mode: mode to show the kmer composition plot in (raw, collapsed or sequence)
+        :param selected_gene: gene to show the kmer composition for
+        :param length_range: minimal and maximal length of the repeats to show
+        :param stored_df: uploaded data
+        :param sequence_direction: direction to show the sequence kmer composition in
+        :param publication_ready: whether to show a publication-ready plot
+        :param dataset: dataset to show the kmer composition for
+        """
+        if kmer_mode == "sequence":
+            if len(stored_df) == 0:
+                kmer_df = kmers[(dataset, selected_gene)]
+            else:
+                stored_df = pd.DataFrame(stored_df)
+                kmer_df = pd.concat(
+                    [
+                        kmers[(dataset, selected_gene)],
+                        parse_kmers(stored_df, repeats, selected_gene, dataset),
+                    ]
+                ).fillna(0.0)
+            filtered_df = df[(df["gene"] == selected_gene) & (df["dataset"] == dataset)]
+            return plot.kmer_plot_sequence(
+                kmer_df,
+                repeat_df=filtered_df,
+                selected_gene=selected_gene,
+                length_range=length_range,
+                direction=sequence_direction,
+                publication_ready="publication-ready" in publication_ready,
+            )
+        else:
+            return dash.no_update
 
     @app.callback(
         Output("repeat-len-slider", "min"),
