@@ -16,6 +16,7 @@ from pathSTR.repeats import Repeats
 import pathSTR.plot as plot
 from pathSTR.version import __version__
 from pathSTR.count_kmers import parse_kmers
+from pathSTR.rle import rle
 import os
 import sys
 import logging
@@ -1244,13 +1245,16 @@ def main():
         # if only one individual is selected, it is not a list
         if isinstance(individuals, str):
             individuals = [individuals]
-
+        motif_length = repeats.motif_length(gene)
         detail_df = (
             df[
                 (df["gene"] == gene)
                 & (df["sample"].isin(individuals))
                 & (df["dataset"] == dataset)
             ]
+            .assign(
+                sequence=lambda x: x["sequence"].apply(lambda s: rle(s, motif_length))
+            )
             .reset_index(names="sample.1")
             .drop(columns=["Group", "allele", "gene", "chrom", "hg38_path"])
             .round(1)
