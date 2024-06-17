@@ -48,13 +48,13 @@ def violin_plot(
         fig.update_layout(showlegend=False)
     if "pathlen" in violin_options:
         # path length has to be corrected for the reference length
+        # pathogenic length is in motif units, so the reflen has to be converted to motif units too
         path_length = (
             repeats.pathogenic_min_length(selected_gene)
             - repeats.reflen(selected_gene, unit="units")
             if "ref_diff" in violin_options
             else repeats.pathogenic_min_length(selected_gene)
         )
-
         # if path_length is larger than the current y-axis, extend the y-axis
         if path_length > filtered_df["length"].max():
             if "log" in violin_options:
@@ -148,8 +148,6 @@ def length_scatter(
             "shortest_allele",
             "ref_diff_longest",
             "ref_diff_shortest",
-            "source",
-            "superpopulation",
         ],
         title=f"Lengths per allele of {selected_gene} repeat",
     )
@@ -446,6 +444,7 @@ def kmer_plot_sequence(
     kmer_df,
     repeat_df,
     selected_gene,
+    pathogenic_length=None,
     length_range=None,
     direction="left-to-right",
     publication_ready=False,
@@ -498,8 +497,7 @@ def kmer_plot_sequence(
     # for the alt sequence of every individual,
     # plot the order of the 10 most frequent kmers, with others in grey
     if length_range:
-        min_length = length_range[0]
-        max_length = length_range[1]
+        min_length, max_length = length_range
         repeat_df = (
             repeat_df[
                 repeat_df["length"].between(min_length, max_length, inclusive="both")
@@ -562,14 +560,15 @@ def kmer_plot_sequence(
     fig.update_traces(marker=dict(size=3))
     # make the y axis labels a bit smaller
     fig.update_yaxes(tickfont_size=8)
+    if pathogenic_length:
+        fig.add_vline(x=pathogenic_length, line_dash="dot", line_color="red")
     if direction == "right-to-left":
         fig.update_layout(xaxis_autorange="reversed")
     # set the height of the plot depending on the number of samples
-    # but this leads to weird things (plot points shifting up?!) so is disabled for now
-    # fig.update_layout(
-    #     height=max(len(repeat_df) * 10, 500),
-    #     width=1200,
-    # )
+    fig.update_layout(
+        height=get_height(len(repeat_df)),
+        width=get_width(repeat_df["sequence"].apply(lambda x: len(x)).max()),
+    )
     if publication_ready:
         fig.update_layout(
             font=dict(size=16),
@@ -577,9 +576,32 @@ def kmer_plot_sequence(
                 title_font=dict(size=16),
                 font=dict(size=16),
             ),
-            plot_bgcolor="rgba(0, 0, 0, 0)",
-            paper_bgcolor="rgba(0, 0, 0, 0)",
         )
     # change the size of the dots in the legend
-    fig.update_layout(legend={"itemsizing": "constant"})
+    fig.update_layout(
+        legend={"itemsizing": "constant"},
+        plot_bgcolor="rgba(0, 0, 0, 0)",
+        paper_bgcolor="rgba(0, 0, 0, 0)",
+    )
     return fig
+
+
+def get_width(longest_allele):
+    """
+    Return the width of the plot based on the length of the longest allele
+    The width is constrained between 800 and 1600, and dynamic between those values
+    """
+    max_length = longest_allele * 10
+    if max_length > 1600:
+        return 1600
+    elif max_length < 800:
+        return 800
+    else:
+        return max_length
+
+
+def get_height(num_samples):
+    """
+    Return the height of the plot based on the number of samples
+    """
+    return max(50, num_samples)
