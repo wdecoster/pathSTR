@@ -49,7 +49,8 @@ def violin_plot(
     if "pathlen" in violin_options:
         # path length has to be corrected for the reference length
         path_length = (
-            repeats.pathogenic_min_length(selected_gene) - repeats.reflen(selected_gene)
+            repeats.pathogenic_min_length(selected_gene)
+            - repeats.reflen(selected_gene, unit="units")
             if "ref_diff" in violin_options
             else repeats.pathogenic_min_length(selected_gene)
         )
@@ -147,6 +148,8 @@ def length_scatter(
             "shortest_allele",
             "ref_diff_longest",
             "ref_diff_shortest",
+            "source",
+            "superpopulation",
         ],
         title=f"Lengths per allele of {selected_gene} repeat",
     )
