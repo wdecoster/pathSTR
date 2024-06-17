@@ -307,6 +307,7 @@ def main():
                                                                         daq.NumericInput(
                                                                             id="kmer-options-group-min-size",
                                                                             value=0,
+                                                                            max=1000,
                                                                         ),
                                                                         width="auto",
                                                                     ),
@@ -342,7 +343,30 @@ def main():
                                                                     ),
                                                                 ],
                                                                 align="center",
-                                                            )
+                                                            ),
+                                                            dbc.Row(
+                                                                [
+                                                                    dbc.Col(
+                                                                        html.Label(
+                                                                            "Show pathogenic length:"
+                                                                        ),
+                                                                        width=3,
+                                                                    ),
+                                                                    dbc.Col(
+                                                                        dcc.Dropdown(
+                                                                            id="kmer-options-sequence-pathlen",
+                                                                            options=[
+                                                                                "on",
+                                                                                "off",
+                                                                            ],
+                                                                            value="off",
+                                                                            clearable=False,
+                                                                        ),
+                                                                        width=2,
+                                                                    ),
+                                                                ],
+                                                                align="center",
+                                                            ),
                                                         ],
                                                         style={"display": "none"},
                                                     ),
@@ -1093,6 +1117,7 @@ def main():
             Input("repeat-len-slider", "value"),
             Input("stored-df", "data"),
             Input("kmer-options-sequence-direction", "value"),
+            Input("kmer-options-sequence-pathlen", "value"),
             State("publication-ready", "value"),
             State("dropdown-dataset", "value"),
         ],
@@ -1104,6 +1129,7 @@ def main():
         length_range,
         stored_df,
         sequence_direction,
+        show_pathogenic_length,
         publication_ready,
         dataset,
     ):
@@ -1129,10 +1155,18 @@ def main():
                     ]
                 ).fillna(0.0)
             filtered_df = df[(df["gene"] == selected_gene) & (df["dataset"] == dataset)]
+            # pathogenic lenght is in units of the motif length, so has to be converted to basepairs for this plot
+            pathogenic_length = (
+                repeats.pathogenic_min_length(selected_gene)
+                * repeats.motif_length(selected_gene)
+                if show_pathogenic_length == "on"
+                else None
+            )
             return plot.kmer_plot_sequence(
                 kmer_df,
                 repeat_df=filtered_df,
                 selected_gene=selected_gene,
+                pathogenic_length=pathogenic_length,
                 length_range=length_range,
                 direction=sequence_direction,
                 publication_ready="publication-ready" in publication_ready,
@@ -1148,9 +1182,8 @@ def main():
     )
     def update_slider_range(selected_gene, dataset):
         """Update the slider based on the minimal and maximal length of the repeat"""
-        return floor(kmers[(dataset, selected_gene)]["length"].min()), ceil(
-            kmers[(dataset, selected_gene)]["length"].max()
-        )
+        data = kmers[(dataset, selected_gene)].dropna(subset=["length"])
+        return floor(data["length"].min()), ceil(data["length"].max())
 
     @app.callback(
         Output("strip-plot-log-container", "children"),
