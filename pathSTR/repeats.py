@@ -92,13 +92,13 @@ class Repeats(object):
     def pathogenic_min_length(self, gene):
         return self.df.loc[self.df["name"] == gene, "pathogenic_min"].values[0]
 
-    def reflen(self, gene, unit="bp"):
-        if unit == "bp":
+    def reflen(self, gene, unit="units"):
+        if unit == "units":
             return self.df.loc[self.df["name"] == gene, "reflen"].values[0]
-        elif unit == "units":
+        elif unit == "bp":
             return self.df.loc[self.df["name"] == gene, "reflen"].values[
                 0
-            ] / self.motif_length(gene)
+            ] * self.motif_length(gene)
         else:
             raise ValueError("unit must be 'bp' or 'units'")
 
