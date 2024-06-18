@@ -985,6 +985,14 @@ def main():
                 {"display": "flex", "justifyContent": "center", "alignItems": "center"},
             )
 
+    ## changing the dropdown-gene-composition should clear the kmer-options-raw-sort values
+    @app.callback(
+        Output("kmer-options-raw-sort", "value"),
+        Input("dropdown-gene-composition", "value"),
+    )
+    def clear_kmer_sort(selected_gene):
+        return None
+
     @app.callback(
         [
             Output("kmer-options-raw-sort", "options"),
