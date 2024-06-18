@@ -10,6 +10,8 @@ def rle(sequence, motif_length):
 
     kudos to https://stackoverflow.com/a/78634539/6631639
     """
+    if not sequence:
+        return None
     solutions = []
     for start in range(0, motif_length):
         parts = [
