@@ -7,6 +7,7 @@ import base64
 from cyvcf2 import VCF
 import numpy as np
 from .rle import rle
+import logging
 
 
 def parse_input(vcf_fofn, sample_info, repeats):
@@ -178,6 +179,7 @@ def parse_uploaded_vcf(contents, uploaded_filename, repeats, build, caller):
     _, content_string = contents.split(",")
     decoded = base64.b64decode(content_string)
     try:
+        logging.info(f"Decoding {uploaded_filename}")
         r, w = os.pipe()
         name = uploaded_filename.replace(".vcf", "").replace(".gz", "")
         if uploaded_filename.endswith(".gz"):
@@ -188,10 +190,18 @@ def parse_uploaded_vcf(contents, uploaded_filename, repeats, build, caller):
                 f.write(decoded)
         r_fd = os.fdopen(r, "rb")
         calls = parse_vcf(r_fd, build, caller, repeats, name=name)
-    except OSError:
+        logging.info(f"Parsed {uploaded_filename}")
+    except OSError as e:
         # this happens when the file is not a VCF, or malformed
+        logging.warning(e)
+        return None
+    except Exception as e:
+        logging.error(e)
         return None
     else:
+        if len(calls) == 0:
+            logging.warning(f"No valid calls found in {uploaded_filename}")
+            return None
         df = pd.DataFrame(
             calls,
             columns=[
