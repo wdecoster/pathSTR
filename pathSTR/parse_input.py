@@ -227,12 +227,14 @@ def stats(df):
 
 
 def create_details_table(df, repeats):
-
-    detail_df["sequence"] = detail_df.apply(
+    """
+    Reformat the df to an easier format for querying the details per individual
+    """
+    df["sequence"] = df.apply(
         lambda x: rle(x["sequence"], repeats.motif_length(x["gene"])), axis=1
     )
-    detail_df = (
-        detail_df.drop(columns=["Group", "chrom", "hg38_path"])
+    df = (
+        df.drop(columns=["Group", "chrom", "hg38_path"])
         .round(1)
         .pivot(
             index=["dataset", "gene", "sample"],
@@ -251,18 +253,13 @@ def create_details_table(df, repeats):
     )
 
     # fill in missing columns with the information from the other allele and assign to a new column
-    detail_df["sex"] = detail_df[("Sex", "Allele1")].fillna(
-        detail_df[("Sex", "Allele2")]
+    df["sex"] = df[("Sex", "Allele1")].fillna(df[("Sex", "Allele2")])
+    df["superpopulation"] = df[("Superpopulation", "Allele1")].fillna(
+        df[("Superpopulation", "Allele2")]
     )
-    detail_df["superpopulation"] = detail_df[("Superpopulation", "Allele1")].fillna(
-        detail_df[("Superpopulation", "Allele2")]
-    )
-    detail_df["data_source"] = detail_df[("source", "Allele2")].fillna(
-        detail_df[("source", "Allele1")]
-    )
+    df["data_source"] = df[("source", "Allele2")].fillna(df[("source", "Allele1")])
 
-    # drop the original columns
-    detail_df = detail_df.drop(
+    return df.drop(
         columns=[
             ("Sex", "Allele1"),
             ("Sex", "Allele2"),
@@ -272,4 +269,3 @@ def create_details_table(df, repeats):
             ("source", "Allele2"),
         ]
     ).set_index("sample")
-    return detail_df

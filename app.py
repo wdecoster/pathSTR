@@ -73,7 +73,7 @@ def main():
         detail_df = parse.create_details_table(df, repeats)
         logging.info("Finished creating details table.")
 
-        if args.save_db:
+        if args.save_db and not args.force:
             if os.path.exists(args.save_db):
                 logging.warning(
                     f"pathSTR_db file {args.save_db} already exists, skipping."
@@ -509,8 +509,8 @@ def main():
                                                     dash_table.DataTable(
                                                         id="details-table",
                                                         style_cell={
-                                                            "fontSize": 14,
-                                                            "font-family": "sans-serif",
+                                                            "fontSize": 20,
+                                                            "font-family": "arial",
                                                             "textAlign": "left",
                                                             "overflow": "hidden",
                                                             "textOverflow": "ellipsis",
@@ -522,7 +522,7 @@ def main():
                                                             "backgroundColor": "white",
                                                             "fontWeight": "bold",
                                                             "font-family": "sans-serif",
-                                                            "fontSize": 18,
+                                                            "fontSize": 24,
                                                         },
                                                         tooltip_duration=None,
                                                     ),
@@ -1247,13 +1247,21 @@ def main():
         if isinstance(individuals, str):
             individuals = [individuals]
 
-        detail_df[
-            (detail_df["dataset"] == dataset)
-            & (detail_df["gene"] == gene)
-            & (detail_df.index.isin(individuals))
-        ].drop(columns=["dataset", "gene"]).transpose()
-        columns = [({"name": c, "id": c}) for c in detail_df.columns]
-        details = detail_df.to_dict("records")
+        details_table = (
+            detail_df[
+                (detail_df["dataset"] == dataset)
+                & (detail_df["gene"] == gene)
+                & (detail_df.index.isin(individuals))
+            ]
+            .drop(columns=["dataset", "gene"], level=0)
+            .transpose()
+        )
+        # convert the multi-index to a single column (with empty name)
+        details_table.insert(
+            0, "", [f"{j}:{i}" if j else i for i, j in details_table.index]
+        )
+        columns = [({"name": c, "id": c}) for c in details_table.columns]
+        details = details_table.to_dict("records")
         tooltip_data = [
             {
                 column: {"value": str(value), "type": "markdown"}
@@ -1423,6 +1431,9 @@ def get_args():
         "--store_only",
         help="Only store the parsed data and do not start the Dash app",
         action="store_true",
+    )
+    parser.add_argument(
+        "--force", help="Overwrite the existing pathSTR_db file", action="store_true"
     )
     parser.add_argument(
         "--debug",
