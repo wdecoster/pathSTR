@@ -70,7 +70,7 @@ def main():
         }
         logging.info("Finished parsing kmers.")
 
-        detail_df = parse.create_details_table(df, repeats)
+        detail_df = parse.create_details_table(df.copy(), repeats)
         logging.info("Finished creating details table.")
 
         if args.save_db:
@@ -218,62 +218,80 @@ def main():
                                                 href="https://github.com/wdecoster/pathSTR/issues",
                                                 target="_blank",
                                             ),
-                                            " or by sending me an email. The repository also contains documentation for the aSTRonaut companion script, for a more flexible kmer visualization in the ",
+                                            " or by sending me an email. The repository also contains documentation for the aSTRonaut companion script, for a more flexible visualization in the repeat composition ",
                                             html.I("sequence"),
                                             " mode.",
                                         ],
                                         style={"textAlign": "justify"},
                                     ),
                                 ],
-                                style={"width": "80%", "margin": "auto"},
+                                style={"width": "60%", "margin": "auto"},
                             ),
                             html.H1("Options", className="my-3"),
-                            dcc.Checklist(
-                                id="publication-ready",
-                                options=[
-                                    {
-                                        "label": "Publication-ready figures",
-                                        "value": "publication-ready",
-                                    }
-                                ],
-                                value=[],
-                                inline=True,
-                                inputStyle={"margin-left": "15px"},
-                            ),
-                            # add a checkbox for making the strip plot dynamic
-                            dcc.Checklist(
-                                id="strip-dynamic",
-                                options=[
-                                    {
-                                        "label": "Dynamic strip plot [rather slow]",
-                                        "value": "dynamic",
-                                    }
-                                ],
-                                value=[],
-                                inline=True,
-                                inputStyle={"margin-left": "15px"},
-                            ),
-                            # add a dropdown for selecting the dataset, with default STRdust
-                            dbc.Row(
+                            html.Div(
                                 [
-                                    dbc.Col(
-                                        html.Label(
-                                            "Select dataset for pathSTR:",
-                                            style={"margin-left": "15px"},
-                                        ),
-                                        width=2,
+                                    dbc.Row(
+                                        [
+                                            dbc.Col(
+                                                html.Label(
+                                                    "Publication-ready figures:",
+                                                ),
+                                                width=3,
+                                            ),
+                                            dbc.Col(
+                                                dcc.Dropdown(
+                                                    id="publication-ready",
+                                                    options=["on", "off"],
+                                                    value="off",
+                                                    clearable=False,
+                                                ),
+                                                width=2,
+                                            ),
+                                        ],
+                                        align="center",
                                     ),
-                                    dbc.Col(
-                                        dcc.Dropdown(
-                                            id="dropdown-dataset",
-                                            options=dataset_options,
-                                            value="STRdust_hg38",
-                                            clearable=False,
-                                        ),
-                                        width=2,
+                                    dbc.Row(
+                                        [
+                                            dbc.Col(
+                                                html.Label(
+                                                    "Dynamic strip plot [rather slow]:",
+                                                ),
+                                                width=3,
+                                            ),
+                                            dbc.Col(
+                                                dcc.Dropdown(
+                                                    id="strip-dynamic",
+                                                    options=["on", "off"],
+                                                    value="off",
+                                                    clearable=False,
+                                                ),
+                                                width=2,
+                                            ),
+                                        ],
+                                        align="center",
+                                    ),
+                                    dbc.Row(
+                                        [
+                                            dbc.Col(
+                                                html.Label(
+                                                    "Select dataset for pathSTR:",
+                                                ),
+                                                width=3,
+                                            ),
+                                            dbc.Col(
+                                                dcc.Dropdown(
+                                                    id="dropdown-dataset",
+                                                    options=dataset_options,
+                                                    value="STRdust_hg38",
+                                                    clearable=False,
+                                                ),
+                                                width=2,
+                                            ),
+                                        ],
+                                        align="center",
                                     ),
                                 ],
-                                align="center",
+                                style={"width": "60%", "margin": "auto"},
                             ),
                             html.H1("Downloads", className="my-3"),
                             html.Div(
@@ -299,6 +317,7 @@ def main():
                                     dcc.Download(id="download"),
                                     dcc.Download(id="download-zip"),
                                 ],
+                                style={"width": "60%", "margin": "auto"},
                             ),
                             html.H1("Repeats", className="my-3"),
                             html.Div(
@@ -338,8 +357,8 @@ def main():
                                     ),
                                 ],
                                 style={
-                                    "display": "flex",
-                                    "justifyContent": "flex-start",
+                                    "width": "60%",
+                                    "margin": "auto",
                                 },
                             ),
                         ],
@@ -896,7 +915,7 @@ def main():
                 repeats=repeats,  # show optionally the pathogenic length
                 selected_gene=selected_gene,
                 violin_options=violin_options,
-                publication_ready="publication-ready" in publication_ready,
+                publication_ready=publication_ready == "on",
             ),
             warning,
         )
@@ -946,7 +965,7 @@ def main():
             selected_gene,
             path_length=repeats.pathogenic_min_length(selected_gene),  # optional
             violin_options=violin_options,
-            publication_ready="publication-ready" in publication_ready,
+            publication_ready=publication_ready == "on",
         )
 
     # Create a callback that changes the visibility of the kmer options and kmer-plots based on the mode
@@ -1072,7 +1091,7 @@ def main():
                 length_range=length_range,
                 sort=raw_sort,
                 num_columns=num_columns,
-                publication_ready="publication-ready" in publication_ready,
+                publication_ready=publication_ready == "on",
             )
         else:
             return dash.no_update
@@ -1127,7 +1146,7 @@ def main():
                 selected_gene=selected_gene,
                 length_range=length_range,
                 min_group_size=collapsed_group_min_size,
-                publication_ready="publication-ready" in publication_ready,
+                publication_ready=publication_ready == "on",
             )
         else:
             return dash.no_update
@@ -1192,7 +1211,7 @@ def main():
                 pathogenic_length=pathogenic_length,
                 length_range=length_range,
                 direction=sequence_direction,
-                publication_ready="publication-ready" in publication_ready,
+                publication_ready=publication_ready == "on",
             )
         else:
             return dash.no_update
@@ -1223,7 +1242,7 @@ def main():
         If the dynamic checkbox is checked, the plot is updated with the uploaded data
         This makes the app quite a bit faster
         """
-        if dynamic:
+        if dynamic == "on":
             if stored_df is None:
                 return dcc.Graph(
                     id="strip-plot-log",

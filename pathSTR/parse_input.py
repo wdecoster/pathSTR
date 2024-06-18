@@ -240,11 +240,11 @@ def create_details_table(df, repeats):
     """
     Reformat the df to an easier format for querying the details per individual
     """
-    df["sequence"] = df.apply(
+    df["sequence_rle"] = df.apply(
         lambda x: rle(x["sequence"], repeats.motif_length(x["gene"])), axis=1
     )
     df = (
-        df.drop(columns=["Group", "chrom", "hg38_path"])
+        df.drop(columns=["Group", "chrom", "hg38_path", "sequence"])
         .round(1)
         .pivot(
             index=["dataset", "gene", "sample"],
@@ -252,7 +252,7 @@ def create_details_table(df, repeats):
             values=[
                 "length",
                 "ref_diff",
-                "sequence",
+                "sequence_rle",
                 "support",
                 "Sex",
                 "Superpopulation",
