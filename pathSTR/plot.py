@@ -239,11 +239,14 @@ def create_strip_plot(strip_df, log=False):
         fig.update_layout(xaxis_title="", yaxis_title="Repeat length [log(units)]")
     else:
         fig.update_layout(xaxis_title="", yaxis_title="Repeat length [units]")
-    fig.update_traces(marker=dict(size=2))
+    fig.update_traces(marker=dict(size=2, opacity=0.7))
     if strip_df["Group"].nunique() > 1:
         fig.update_layout(legend_title_text="Group")
     else:
         fig.update_layout(showlegend=False)
+    fig.update_layout(
+        plot_bgcolor="rgba(0, 0, 0, 0)",
+    )
     return fig
 
 
