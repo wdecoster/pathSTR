@@ -6,6 +6,7 @@ import gzip
 import base64
 from cyvcf2 import VCF
 import numpy as np
+from .rle import rle
 
 
 def parse_input(vcf_fofn, sample_info, repeats):
@@ -225,7 +226,50 @@ def stats(df):
     return df.groupby(["dataset", "gene"])["length"].agg(["mean", "std"]).round(1)
 
 
-# def get_composition(df, gene, repeats):
-#     """Calculate the composition of the dataset"""
-#     motifs = repeats.motifs(gene)
-#     df = df[df["gene"] == gene].drop(columns=["chrom", "length", "ref_diff"])
+def create_details_table(df, repeats):
+    df = pd.read_hdf("1000G.pathSTRdb", key="df")
+    detail_df = df.dropna(subset=["sequence"])
+
+    detail_df["sequence"] = detail_df.apply(
+        lambda x: rle(x["sequence"], repeats.motif_length(x["gene"])), axis=1
+    )
+    detail_df = detail_df.drop(columns=["Group", "chrom", "hg38_path"])
+    detail_df = detail_df.round(1)
+
+    detail_df = detail_df.pivot(
+        index=["dataset", "gene", "sample"],
+        columns="allele",
+        values=[
+            "length",
+            "ref_diff",
+            "sequence",
+            "support",
+            "Sex",
+            "Superpopulation",
+            "source",
+        ],
+    ).reset_index()
+
+    # fill in missing columns with the information from the other allele and assign to a new column
+    detail_df["sex"] = detail_df[("Sex", "Allele1")].fillna(
+        detail_df[("Sex", "Allele2")]
+    )
+    detail_df["superpopulation"] = detail_df[("Superpopulation", "Allele1")].fillna(
+        detail_df[("Superpopulation", "Allele2")]
+    )
+    detail_df["data_source"] = detail_df[("source", "Allele2")].fillna(
+        detail_df[("source", "Allele1")]
+    )
+
+    # drop the original columns
+    detail_df = detail_df.drop(
+        columns=[
+            ("Sex", "Allele1"),
+            ("Sex", "Allele2"),
+            ("Superpopulation", "Allele1"),
+            ("Superpopulation", "Allele2"),
+            ("source", "Allele1"),
+            ("source", "Allele2"),
+        ]
+    ).set_index("sample")
+    return detail_df

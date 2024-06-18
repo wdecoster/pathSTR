@@ -16,7 +16,6 @@ from pathSTR.repeats import Repeats
 import pathSTR.plot as plot
 from pathSTR.version import __version__
 from pathSTR.count_kmers import parse_kmers
-from pathSTR.rle import rle
 import os
 import sys
 import logging
@@ -45,6 +44,7 @@ def main():
         }
         stat = pd.read_hdf(args.db, key="stat")
         repeats = Repeats(df=pd.read_hdf(args.db, key="repeats"))
+        detail_df = pd.read_hdf(args.db, key="details")
         db_version = pd.read_hdf(args.db, key="version").values[0]
         logging.info("Finished reading pathSTR_db file.")
     elif args.vcf and args.sample_info:
@@ -69,6 +69,10 @@ def main():
             for dataset in df["dataset"].unique()
         }
         logging.info("Finished parsing kmers.")
+
+        detail_df = parse.create_details_table(df, repeats)
+        logging.info("Finished creating details table.")
+
         if args.save_db:
             if os.path.exists(args.save_db):
                 logging.warning(
@@ -80,6 +84,7 @@ def main():
                 for (dataset, gene), kmer_df in kmers.items():
                     kmer_df.to_hdf(args.save_db, key=f"kmer_{dataset}_{gene}", mode="a")
                 repeats.df.to_hdf(args.save_db, key="repeats", mode="a")
+                detail_df.to_hdf(args.save_db, key="details", mode="a")
                 # use the date of today as the database version identifier and save it to the database as a pd.Series
                 import datetime
 
@@ -88,12 +93,8 @@ def main():
                 )
                 logging.info(f"Saved parsed data to {args.save_db}.")
     else:
-        logging.error(
-            "Provide either a pathSTR_db file, or a fofn of VCFs and sample info file."
-        )
-        raise ValueError(
-            "Provide either a pathSTR_db file, or a fofn of VCFs and sample info file"
-        )
+        logging.error("Provide a database, or a fofn of VCFs and sample info file.")
+        raise ValueError("Provide a database, or a fofn of VCFs and sample info file")
     if args.store_only:
         return
 
@@ -1245,45 +1246,22 @@ def main():
         # if only one individual is selected, it is not a list
         if isinstance(individuals, str):
             individuals = [individuals]
-        motif_length = repeats.motif_length(gene)
-        detail_df = (
-            df[
-                (df["gene"] == gene)
-                & (df["sample"].isin(individuals))
-                & (df["dataset"] == dataset)
-            ]
-            .assign(
-                sequence=lambda x: x["sequence"].apply(lambda s: rle(s, motif_length))
-            )
-            .reset_index(names="sample.1")
-            .drop(columns=["Group", "allele", "gene", "chrom", "hg38_path"])
-            .round(1)
-            .groupby("sample")
-            .transform(
-                lambda x: (
-                    ",".join([str(i) for i in set(x)])
-                    if x.name
-                    in ["sample.1", "Sex", "Superpopulation", "source", "dataset"]
-                    else ",".join([str(i) for i in list(x)])
-                )
-            )
-            .drop_duplicates()
-            .transpose()
-        )
-        detail_df = (
-            detail_df.rename(columns=detail_df.loc["sample.1"])
-            .drop("sample.1")
-            .reset_index(names="")
-        )
+
+        detail_df[
+            (detail_df["dataset"] == dataset)
+            & (detail_df["gene"] == gene)
+            & (detail_df.index.isin(individuals))
+        ].drop(columns=["dataset", "gene"]).transpose()
         columns = [({"name": c, "id": c}) for c in detail_df.columns]
+        details = detail_df.to_dict("records")
         tooltip_data = [
             {
                 column: {"value": str(value), "type": "markdown"}
                 for column, value in row.items()
             }
-            for row in detail_df.to_dict("records")
+            for row in details
         ]
-        return detail_df.to_dict("records"), columns, tooltip_data
+        return details, columns, tooltip_data
 
     @app.callback(
         Output("igv-output", "children"),
