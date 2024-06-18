@@ -109,6 +109,30 @@ def main():
         {"label": dataset, "value": dataset}
         for dataset in df["dataset"].unique().tolist()
     ]
+
+    tabs_styles = {"height": "60px"}
+    tab_style = {
+        "borderBottom": "1px solid #d6d6d6",
+        "padding": "6px",
+        "align-items": "center",
+        "vertical-align": "middle",
+        "display": "flex",
+        "justify-content": "center",
+        "align-items": "center",
+    }
+
+    tab_selected_style = {
+        "borderTop": "1px solid #d6d6d6",
+        "borderBottom": "1px solid #d6d6d6",
+        "fontWeight": "bold",
+        "padding": "6px",
+        "align-items": "center",
+        "vertical-align": "middle",
+        "display": "flex",
+        "justify-content": "center",
+        "align-items": "center",
+    }
+
     app.layout = html.Div(
         [
             html.Div(
@@ -127,9 +151,14 @@ def main():
                 [
                     dcc.Tab(
                         label="Overview",
+                        style=tab_style,
+                        selected_style=tab_selected_style,
                         children=[
                             html.H1("Overview", style={"bottommargin": "0px"}),
-                            html.Img(src=dash.get_asset_url("overview-strip.png")),
+                            html.Img(
+                                src=dash.get_asset_url("overview-strip.png"),
+                                style={"width": "100%"},
+                            ),
                             dcc.Loading(
                                 id="loading-strip-2",
                                 type="cube",
@@ -365,40 +394,64 @@ def main():
                     ),
                     dcc.Tab(
                         label="Repeat length",
+                        style=tab_style,
+                        selected_style=tab_selected_style,
                         children=[
                             html.H1("Repeat length"),
-                            html.Div(
+                            dbc.Container(
                                 children=[
-                                    dcc.Dropdown(
-                                        id="dropdown-gene-length",
-                                        options=gene_options,
-                                        value=gene_options[0]["value"],
-                                        clearable=False,
+                                    dbc.Row(
+                                        [
+                                            dbc.Col(
+                                                html.Label("Select gene:"), width=3
+                                            ),
+                                            dbc.Col(
+                                                dcc.Dropdown(
+                                                    id="dropdown-gene-length",
+                                                    options=gene_options,
+                                                    value=gene_options[0]["value"],
+                                                    clearable=False,
+                                                ),
+                                                width=3,
+                                            ),
+                                        ],
+                                        align="center",
                                     ),
                                     dbc.Row(
                                         [
                                             dbc.Col(
-                                                dcc.Checklist(
-                                                    id="violin_options",
+                                                html.Label("Split data by:"), width=3
+                                            ),
+                                            dbc.Col(
+                                                dcc.Dropdown(
+                                                    id="violin-split",
+                                                    options=["population", "sex"],
+                                                    value=[""],
+                                                    clearable=True,
+                                                    multi=True,
+                                                ),
+                                                width=3,
+                                            ),
+                                        ],
+                                        align="center",
+                                    ),
+                                    dbc.Row(
+                                        [
+                                            dbc.Col(html.Label("Show:"), width=3),
+                                            dbc.Col(
+                                                dcc.Dropdown(
+                                                    id="violin-show",
                                                     options=[
                                                         {
-                                                            "label": "Split by population",
-                                                            "value": "population",
-                                                        },
-                                                        {
-                                                            "label": "Split by sex",
-                                                            "value": "sex",
-                                                        },
-                                                        {
-                                                            "label": "Show repeat length relative to reference genome",
+                                                            "label": "Length relative to reference",
                                                             "value": "ref_diff",
                                                         },
                                                         {
-                                                            "label": "Show log-transformed length",
+                                                            "label": "Log-transformed length",
                                                             "value": "log",
                                                         },
                                                         {
-                                                            "label": "Show pathogenic length",
+                                                            "label": "Pathogenic cut-off",
                                                             "value": "pathlen",
                                                         },
                                                         {
@@ -407,14 +460,19 @@ def main():
                                                         },
                                                     ],
                                                     value=["density"],
-                                                    inline=True,
-                                                    inputStyle={"margin-left": "15px"},
-                                                )
+                                                    multi=True,
+                                                    clearable=True,
+                                                ),
+                                                width=3,
                                             ),
                                             dbc.Col(
-                                                html.Div(id="warning-pathogenic-length")
+                                                html.Div(
+                                                    id="warning-pathogenic-length"
+                                                ),
+                                                width=3,
                                             ),
-                                        ]
+                                        ],
+                                        align="center",
                                     ),
                                 ]
                             ),
@@ -437,6 +495,8 @@ def main():
                     ),
                     dcc.Tab(
                         label="Repeat Composition",
+                        style=tab_style,
+                        selected_style=tab_selected_style,
                         children=[
                             html.H1("Repeat Composition"),
                             dbc.Container(
@@ -487,7 +547,7 @@ def main():
                                                     value=gene_options[0]["value"],
                                                     clearable=False,
                                                 ),
-                                                width=2,
+                                                width=3,
                                             ),
                                         ],
                                         align="center",
@@ -670,6 +730,8 @@ def main():
                     ),
                     dcc.Tab(
                         label="Details per individual",
+                        style=tab_style,
+                        selected_style=tab_selected_style,
                         children=[
                             html.H1("Details per individual and repeat"),
                             dbc.Container(
@@ -753,6 +815,8 @@ def main():
                     ),
                     dcc.Tab(
                         label="Upload your data",
+                        style=tab_style,
+                        selected_style=tab_selected_style,
                         children=[
                             html.H1("Upload your data"),
                             dcc.Store(id="stored-df"),
@@ -817,7 +881,8 @@ def main():
                             ),
                         ],
                     ),
-                ]
+                ],
+                style=tabs_styles,
             ),
         ]
     )
@@ -876,13 +941,14 @@ def main():
         [
             Input("dropdown-gene-length", "value"),
             Input("stored-df", "data"),
-            Input("violin_options", "value"),
+            Input("violin-split", "value"),
+            Input("violin-show", "value"),
             Input("publication-ready", "value"),
             Input("dropdown-dataset", "value"),
         ],
     )
     def update_violin(
-        selected_gene, stored_df, violin_options, publication_ready, dataset
+        selected_gene, stored_df, violin_split, violin_show, publication_ready, dataset
     ):
         """
         Create repeat length violin plot
@@ -906,7 +972,7 @@ def main():
                     "margin-left": 15,
                 },
             )
-            if "pathlen" in violin_options
+            if "pathlen" in violin_show
             else ""
         )
         return (
@@ -914,7 +980,7 @@ def main():
                 filtered_df,
                 repeats=repeats,  # show optionally the pathogenic length
                 selected_gene=selected_gene,
-                violin_options=violin_options,
+                violin_options=violin_show + violin_split,
                 publication_ready=publication_ready == "on",
             ),
             warning,
@@ -940,13 +1006,14 @@ def main():
         [
             Input("dropdown-gene-length", "value"),
             Input("stored-df", "data"),
-            Input("violin_options", "value"),
+            Input("violin-split", "value"),
+            Input("violin-show", "value"),
             Input("publication-ready", "value"),
             Input("dropdown-dataset", "value"),
         ],
     )
     def update_length_scatter(
-        selected_gene, stored_df, violin_options, publication_ready, dataset
+        selected_gene, stored_df, violin_split, violin_show, publication_ready, dataset
     ):
         """
         Create repeat length scatter plot
@@ -964,7 +1031,7 @@ def main():
             filtered_df,
             selected_gene,
             path_length=repeats.pathogenic_min_length(selected_gene),  # optional
-            violin_options=violin_options,
+            violin_options=violin_show + violin_split,
             publication_ready=publication_ready == "on",
         )
 
