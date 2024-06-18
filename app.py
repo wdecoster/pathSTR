@@ -73,8 +73,8 @@ def main():
         detail_df = parse.create_details_table(df, repeats)
         logging.info("Finished creating details table.")
 
-        if args.save_db and not args.force:
-            if os.path.exists(args.save_db):
+        if args.save_db:
+            if os.path.exists(args.save_db) and not args.force:
                 logging.warning(
                     f"pathSTR_db file {args.save_db} already exists, skipping."
                 )
