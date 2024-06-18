@@ -227,28 +227,28 @@ def stats(df):
 
 
 def create_details_table(df, repeats):
-    df = pd.read_hdf("1000G.pathSTRdb", key="df")
-    detail_df = df.dropna(subset=["sequence"])
 
     detail_df["sequence"] = detail_df.apply(
         lambda x: rle(x["sequence"], repeats.motif_length(x["gene"])), axis=1
     )
-    detail_df = detail_df.drop(columns=["Group", "chrom", "hg38_path"])
-    detail_df = detail_df.round(1)
-
-    detail_df = detail_df.pivot(
-        index=["dataset", "gene", "sample"],
-        columns="allele",
-        values=[
-            "length",
-            "ref_diff",
-            "sequence",
-            "support",
-            "Sex",
-            "Superpopulation",
-            "source",
-        ],
-    ).reset_index()
+    detail_df = (
+        detail_df.drop(columns=["Group", "chrom", "hg38_path"])
+        .round(1)
+        .pivot(
+            index=["dataset", "gene", "sample"],
+            columns="allele",
+            values=[
+                "length",
+                "ref_diff",
+                "sequence",
+                "support",
+                "Sex",
+                "Superpopulation",
+                "source",
+            ],
+        )
+        .reset_index()
+    )
 
     # fill in missing columns with the information from the other allele and assign to a new column
     detail_df["sex"] = detail_df[("Sex", "Allele1")].fillna(
