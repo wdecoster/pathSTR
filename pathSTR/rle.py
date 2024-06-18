@@ -22,9 +22,16 @@ def rle(sequence, motif_length):
         for k, g in groupby(parts):
             _len = len(list(g))
             if _len > 1:
-                lst.append(f"({k}){_len}")
+                lst.append(f"({k}){to_subscript(_len)}")
             else:
                 lst.append(k)
         solutions.append("".join(lst))
     # return the shortest solution
     return min(solutions, key=len)
+
+
+def to_subscript(n):
+    """
+    Convert a number to subscript
+    """
+    return "".join(chr(0x2080 + int(i)) for i in str(n))
