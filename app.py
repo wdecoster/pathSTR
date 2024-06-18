@@ -130,19 +130,6 @@ def main():
                         children=[
                             html.H1("Overview", style={"bottommargin": "0px"}),
                             html.Img(src=dash.get_asset_url("overview-strip.png")),
-                            # add a checkbox for making the strip plot dynamic
-                            dcc.Checklist(
-                                id="strip-dynamic",
-                                options=[
-                                    {
-                                        "label": "Dynamic strip plot",
-                                        "value": "dynamic",
-                                    }
-                                ],
-                                value=[],
-                                inline=True,
-                                inputStyle={"margin-left": "15px"},
-                            ),
                             dcc.Loading(
                                 id="loading-strip-2",
                                 type="cube",
@@ -153,6 +140,207 @@ def main():
                                     ),
                                 ],
                                 style={"margin": "0px", "height": "20vh"},
+                            ),
+                            html.Br(),
+                            html.H1("About"),
+                            html.Div(
+                                [
+                                    html.P(
+                                        [
+                                            "Welcome to the pathSTR web app, a tool to visualize and compare STR genotypes from nanopore sequencing in control cohorts. ",
+                                            "The STR genotypes have been obtained using ",
+                                            html.A(
+                                                "STRdust",
+                                                href="https://github.com/wdecoster/STRdust",
+                                                target="_blank",
+                                            ),
+                                            " and ",
+                                            html.A(
+                                                "LongTR",
+                                                href="https://github.com/gymrek-lab/LongTR",
+                                                target="_blank",
+                                            ),
+                                            " from samples of the 1000 Genomes project, sequenced on the Oxford Nanopore Technologies PromethION. "
+                                            "Please let me know if you know a suitable dataset of control individuals to add, for which long read alignments are available online. ",
+                                            "If this resource is useful to you, please cite our ",
+                                            html.A(
+                                                "publication",
+                                                href="https://www.medrxiv.org/content/10.1101/2024.03.06.24303700v1/",
+                                                target="_blank",
+                                            ),
+                                            ", as well as the references to the underlying datasets: ",
+                                            html.A(
+                                                "Noyvert et al. 2023",
+                                                href="https://www.medrxiv.org/content/10.1101/2023.12.20.23300308v1",
+                                                target="_blank",
+                                            ),
+                                            ", ",
+                                            html.A(
+                                                "Schloissnig et al. 2024",
+                                                href="https://www.biorxiv.org/content/10.1101/2024.04.18.590093v1",
+                                                target="_blank",
+                                            ),
+                                            " and ",
+                                            html.A(
+                                                "Gustafson et al. 2024",
+                                                href="https://www.medrxiv.org/content/10.1101/2024.03.05.24303792v1",
+                                                target="_blank",
+                                            ),
+                                            ".",
+                                        ],
+                                        style={"textAlign": "justify"},
+                                    ),
+                                    html.P(
+                                        [
+                                            "You can upload your own VCF.gz file(s) (genotyped with STRdust or LongTR) to show alongside the 1000 Genomes data for comparison. Uploading data is currently limited to 100kb files, please let me know if more would be required. For genotyping with STRdust, use the --pathogenic flag. Note that as the app cannot figure out the sex of your individuals, males will show two alleles on haploid chromosomes. This is corrected for samples in the 1000 Genomes cohort. "
+                                            "The repeat coordinates and motifs used in this app are obtained from ",
+                                            html.A(
+                                                "STRchive",
+                                                href="https://harrietdashnow.com/STRchive/",
+                                                target="_blank",
+                                            ),
+                                            ". Other dependencies are Python and the Dash/plotly, pandas, hdf5 and cyvcf2 modules for the web app, and snakemake to orchestrate the variant calling.",
+                                        ],
+                                        style={"textAlign": "justify"},
+                                    ),
+                                    html.P(
+                                        [
+                                            f"This web app is developed and maintained by Wouter De Coster. The hosting and deployment is arranged by Svenn D'Hert, as well as some nice layout fixes. The current app version is v{__version__}, and the database of {num_samples} individuals was generated on {db_version}. ",
+                                            "The source code is available on ",
+                                            html.A(
+                                                "GitHub",
+                                                href="https://github.com/wdecoster/pathSTR",
+                                                target="_blank",
+                                            ),
+                                            ". Feedback is welcome in the form of an ",
+                                            html.A(
+                                                "issue on GitHub",
+                                                href="https://github.com/wdecoster/pathSTR/issues",
+                                                target="_blank",
+                                            ),
+                                            " or by sending me an email. The repository also contains documentation for the aSTRonaut companion script, for a more flexible kmer visualization in the ",
+                                            html.I("sequence"),
+                                            " mode.",
+                                        ],
+                                        style={"textAlign": "justify"},
+                                    ),
+                                ],
+                                style={"width": "80%", "margin": "auto"},
+                            ),
+                            html.H1("Options", className="my-3"),
+                            dcc.Checklist(
+                                id="publication-ready",
+                                options=[
+                                    {
+                                        "label": "Publication-ready figures",
+                                        "value": "publication-ready",
+                                    }
+                                ],
+                                value=[],
+                                inline=True,
+                                inputStyle={"margin-left": "15px"},
+                            ),
+                            # add a checkbox for making the strip plot dynamic
+                            dcc.Checklist(
+                                id="strip-dynamic",
+                                options=[
+                                    {
+                                        "label": "Dynamic strip plot [rather slow]",
+                                        "value": "dynamic",
+                                    }
+                                ],
+                                value=[],
+                                inline=True,
+                                inputStyle={"margin-left": "15px"},
+                            ),
+                            # add a dropdown for selecting the dataset, with default STRdust
+                            dbc.Row(
+                                [
+                                    dbc.Col(
+                                        html.Label(
+                                            "Select dataset for pathSTR:",
+                                            style={"margin-left": "15px"},
+                                        ),
+                                        width=2,
+                                    ),
+                                    dbc.Col(
+                                        dcc.Dropdown(
+                                            id="dropdown-dataset",
+                                            options=dataset_options,
+                                            value="STRdust_hg38",
+                                            clearable=False,
+                                        ),
+                                        width=2,
+                                    ),
+                                ],
+                                align="center",
+                            ),
+                            html.H1("Downloads", className="my-3"),
+                            html.Div(
+                                [
+                                    html.Div(
+                                        children=[
+                                            html.Button(
+                                                "Download Data as TSV",
+                                                id="btn",
+                                                className="btn btn-primary btn-lg",
+                                            ),
+                                            html.Button(
+                                                "Download VCFs",
+                                                id="download-zip-button",
+                                                className="btn btn-success btn-lg mx-3",
+                                            ),
+                                        ],
+                                        style={
+                                            "display": "flex",
+                                            "justifyContent": "flex-start",
+                                        },
+                                    ),
+                                    dcc.Download(id="download"),
+                                    dcc.Download(id="download-zip"),
+                                ],
+                            ),
+                            html.H1("Repeats", className="my-3"),
+                            html.Div(
+                                [
+                                    html.P(
+                                        "Repeats used in this app are obtained from STRchive, genotyped for the coordinates below:"
+                                    ),
+                                    html.Div(
+                                        dash_table.DataTable(
+                                            repeats.df[
+                                                [
+                                                    "chrom",
+                                                    "start",
+                                                    "end",
+                                                    "name",
+                                                ]
+                                            ].to_dict("records"),
+                                            [
+                                                {"name": i, "id": i}
+                                                for i in [
+                                                    "chrom",
+                                                    "start",
+                                                    "end",
+                                                    "name",
+                                                ]
+                                            ],
+                                            style_data={"user-select": "auto"},
+                                            export_format="csv",
+                                        ),
+                                        className="table",
+                                        style={
+                                            "width": "30%",
+                                            "margin": "auto",
+                                            "display": "flex",
+                                            "justifyContent": "flex-start",
+                                        },
+                                    ),
+                                ],
+                                style={
+                                    "display": "flex",
+                                    "justifyContent": "flex-start",
+                                },
                             ),
                         ],
                     ),
@@ -607,197 +795,6 @@ def main():
                                 ],
                                 export_format="xlsx",
                                 export_headers="display",
-                            ),
-                        ],
-                    ),
-                    dcc.Tab(
-                        label="About",
-                        children=[
-                            html.H1("About"),
-                            html.Div(
-                                [
-                                    html.P(
-                                        [
-                                            f"This web app is developed and maintained by Wouter De Coster. The hosting and deployment is arranged by Svenn D'Hert, as well as some nice layout fixes. The current app version is v{__version__}, and the database of {num_samples} individuals was generated on {db_version}. ",
-                                            "The source code is available on ",
-                                            html.A(
-                                                "GitHub",
-                                                href="https://github.com/wdecoster/pathSTR",
-                                                target="_blank",
-                                            ),
-                                            ". Feedback is welcome in the form of an ",
-                                            html.A(
-                                                "issue on GitHub",
-                                                href="https://github.com/wdecoster/pathSTR/issues",
-                                                target="_blank",
-                                            ),
-                                            " or by sending me an email. The repository also contains documentation for the aSTRonaut companion script, for a more flexible kmer visualization in the ",
-                                            html.I("sequence"),
-                                            " mode.",
-                                        ],
-                                        style={"textAlign": "justify"},
-                                    ),
-                                    html.P(
-                                        [
-                                            "The STR genotypes have been obtained using ",
-                                            html.A(
-                                                "STRdust",
-                                                href="https://github.com/wdecoster/STRdust",
-                                                target="_blank",
-                                            ),
-                                            " and ",
-                                            html.A(
-                                                "LongTR",
-                                                href="https://github.com/gymrek-lab/LongTR",
-                                                target="_blank",
-                                            ),
-                                            " from samples of the 1000 Genomes project, sequenced on the Oxford Nanopore Technologies PromethION. "
-                                            "Please let me know if you know a suitable dataset of control individuals to add, for which long read alignments are available online. ",
-                                            "If this resource is useful to you, please cite our ",
-                                            html.A(
-                                                "publication",
-                                                href="https://www.medrxiv.org/content/10.1101/2024.03.06.24303700v1/",
-                                                target="_blank",
-                                            ),
-                                            ", as well as the references to the underlying datasets: ",
-                                            html.A(
-                                                "Noyvert et al. 2023",
-                                                href="https://www.medrxiv.org/content/10.1101/2023.12.20.23300308v1",
-                                                target="_blank",
-                                            ),
-                                            ", ",
-                                            html.A(
-                                                "Schloissnig et al. 2024",
-                                                href="https://www.biorxiv.org/content/10.1101/2024.04.18.590093v1",
-                                                target="_blank",
-                                            ),
-                                            " and ",
-                                            html.A(
-                                                "Gustafson et al. 2024",
-                                                href="https://www.medrxiv.org/content/10.1101/2024.03.05.24303792v1",
-                                                target="_blank",
-                                            ),
-                                            ".",
-                                        ],
-                                        style={"textAlign": "justify"},
-                                    ),
-                                    html.P(
-                                        [
-                                            "You can upload your own VCF.gz file(s) (genotyped with STRdust or LongTR) to show alongside the 1000 Genomes data for comparison. Uploading data is currently limited to 100kb files, please let me know if more would be required. For genotyping with STRdust, use the --pathogenic flag. Note that as the app cannot figure out the sex of your individuals, males will show two alleles on haploid chromosomes. This is corrected for samples in the 1000 Genomes cohort. "
-                                            "The repeat coordinates and motifs used in this app are obtained from ",
-                                            html.A(
-                                                "STRchive",
-                                                href="https://harrietdashnow.com/STRchive/",
-                                                target="_blank",
-                                            ),
-                                            ". Other dependencies are Python and the Dash/plotly, pandas, hdf5 and cyvcf2 modules for the web app, and snakemake to orchestrate the variant calling.",
-                                        ],
-                                        style={"textAlign": "justify"},
-                                    ),
-                                ],
-                                style={"width": "60%", "margin": "auto"},
-                            ),
-                            html.H1("Options", className="my-3"),
-                            dcc.Checklist(
-                                id="publication-ready",
-                                options=[
-                                    {
-                                        "label": "Publication-ready figures",
-                                        "value": "publication-ready",
-                                    }
-                                ],
-                                value=[],
-                                inline=True,
-                                inputStyle={"margin-left": "15px"},
-                            ),
-                            # add a dropdown for selecting the dataset, with default STRdust
-                            dbc.Row(
-                                [
-                                    dbc.Col(
-                                        html.Label(
-                                            "Select dataset for pathSTR:",
-                                            style={"margin-left": "15px"},
-                                        ),
-                                        width=3,
-                                    ),
-                                    dbc.Col(
-                                        dcc.Dropdown(
-                                            id="dropdown-dataset",
-                                            options=dataset_options,
-                                            value="STRdust_hg38",
-                                            clearable=False,
-                                        ),
-                                        width=3,
-                                    ),
-                                ],
-                                align="center",
-                            ),
-                            html.H1("Downloads", className="my-3"),
-                            html.Div(
-                                [
-                                    html.Div(
-                                        children=[
-                                            html.Button(
-                                                "Download Data as TSV",
-                                                id="btn",
-                                                className="btn btn-primary btn-lg",
-                                            ),
-                                            html.Button(
-                                                "Download VCFs",
-                                                id="download-zip-button",
-                                                className="btn btn-success btn-lg mx-3",
-                                            ),
-                                        ],
-                                        style={
-                                            "display": "flex",
-                                            "justifyContent": "flex-start",
-                                        },
-                                    ),
-                                    dcc.Download(id="download"),
-                                    dcc.Download(id="download-zip"),
-                                ],
-                            ),
-                            html.H1("Repeats", className="my-3"),
-                            html.Div(
-                                [
-                                    html.P(
-                                        "Repeats used in this app are obtained from STRchive, genotyped for the coordinates below:"
-                                    ),
-                                    html.Div(
-                                        dash_table.DataTable(
-                                            repeats.df[
-                                                [
-                                                    "chrom",
-                                                    "start",
-                                                    "end",
-                                                    "name",
-                                                ]
-                                            ].to_dict("records"),
-                                            [
-                                                {"name": i, "id": i}
-                                                for i in [
-                                                    "chrom",
-                                                    "start",
-                                                    "end",
-                                                    "name",
-                                                ]
-                                            ],
-                                            style_data={"user-select": "auto"},
-                                            export_format="csv",
-                                        ),
-                                        className="table",
-                                        style={
-                                            "width": "30%",
-                                            "margin": "auto",
-                                            "display": "flex",
-                                            "justifyContent": "flex-start",
-                                        },
-                                    ),
-                                ],
-                                style={
-                                    "display": "flex",
-                                    "justifyContent": "flex-start",
-                                },
                             ),
                         ],
                     ),
