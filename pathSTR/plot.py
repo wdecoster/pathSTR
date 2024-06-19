@@ -133,25 +133,7 @@ def length_scatter(
     pivot_df["ref_diff_shortest"] = pivot_df.apply(
         lambda x: min(x["ref_diff_Allele1"], x["ref_diff_Allele2"]), axis=1
     )
-
-    fig = px.scatter(
-        pivot_df,
-        x="ref_diff_longest" if "ref_diff" in violin_options else "longest_allele",
-        y="ref_diff_shortest" if "ref_diff" in violin_options else "shortest_allele",
-        color="Sex" if "sex" in violin_options else "Group",
-        symbol="Superpopulation" if "population" in violin_options else None,
-        log_x="log" in violin_options,
-        log_y="log" in violin_options,
-        hover_data=[
-            "sample",
-            "longest_allele",
-            "shortest_allele",
-            "ref_diff_longest",
-            "ref_diff_shortest",
-        ],
-        title=f"Lengths per allele of {selected_gene} repeat",
-    )
-    fig.update_traces(marker=dict(size=3))
+    fig = go.Figure()
     if "density" in violin_options:
         fig.add_histogram2dcontour(
             x=(
@@ -169,6 +151,28 @@ def length_scatter(
             colorscale="Blues",
             showscale=False,
         )
+    scatters = px.scatter(
+        pivot_df,
+        x="ref_diff_longest" if "ref_diff" in violin_options else "longest_allele",
+        y=("ref_diff_shortest" if "ref_diff" in violin_options else "shortest_allele"),
+        color="Sex" if "sex" in violin_options else "Group",
+        symbol="Superpopulation" if "population" in violin_options else None,
+        log_x="log" in violin_options,
+        log_y="log" in violin_options,
+        hover_data=[
+            "sample",
+            "longest_allele",
+            "shortest_allele",
+            "ref_diff_longest",
+            "ref_diff_shortest",
+        ],
+        title=f"Lengths per allele of {selected_gene} repeat",
+    )["data"]
+    for s in scatters:
+        fig.add_trace(s)
+    for trace in fig.data:
+        if type(trace) == plotly.graph_objs.scatter:
+            trace.marker.update(dict(size=10, opacity=0.6))
     if "pathlen" in violin_options:
         # if path_length is larger than the current y-axis, extend the y-axis
         if path_length > filtered_df["length"].max():
@@ -197,14 +201,11 @@ def length_scatter(
     else:
         fig.update_layout(showlegend=False)
 
-    # make the y-range the same as the x-range
-
     fig.update_layout(
         height=1000,
         width=1000,
         xaxis_title="Repeat length longer allele [units]",
         yaxis_title="Repeat length shorter allele [units]",
-        # use a white background
         plot_bgcolor="rgba(0, 0, 0, 0)",
     )
 
@@ -221,7 +222,7 @@ def length_scatter(
         )
         for trace in fig.data:
             if type(trace) == plotly.graph_objs.scatter:
-                trace.marker.update(dict(size=8, opacity=0.8))
+                trace.marker.update(dict(size=12, opacity=0.8))
     return fig
 
 
