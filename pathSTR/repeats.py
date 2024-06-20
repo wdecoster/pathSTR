@@ -2,10 +2,13 @@ import pandas as pd
 
 
 class Repeats(object):
-    def __init__(self, bed=None, df=None):
-        self.df = self.get_repeat_info()
+    def __init__(self, df=None, build=["hg38", "t2t"]):
+        if df:
+            self.df = df
+        else:
+            self.df = pd.concat(self.get_repeat_info(b) for b in build)
 
-    def get_repeat_info(self):
+    def get_repeat_info(self, build):
         """
         This function parses a bed file as obtained from STRchive, which is intended for TRGT, but also works for STRdust.
         Also a CSV is downloaded, with extra information about the repeats.
@@ -14,9 +17,12 @@ class Repeats(object):
         The motif length that is used for e.g. kmer plots is the longest motif, which may have undesired consequences.
         But the shortest or random choice also was a bad thing, e.g. for FXN.
         """
-        url = "https://raw.githubusercontent.com/hdashnow/STRchive/main/data/hg38.STRchive-disease-loci.TRGT.bed"
+        urls = {
+            "hg38": "https://raw.githubusercontent.com/hdashnow/STRchive/main/data/hg38.STRchive-disease-loci.TRGT.bed",
+            "t2t": "https://raw.githubusercontent.com/hdashnow/STRchive/main/data/T2T-chm13.STRchive-disease-loci.TRGT.bed",
+        }
         bed = pd.read_csv(
-            url, sep="\t", header=None, names=["chrom", "start", "end", "info"]
+            urls[build], sep="\t", header=None, names=["chrom", "start", "end", "info"]
         )
         bed["reflen"] = bed["end"] - bed["start"]
         # isolating the id to match up with the repeat info csv that is downloaded from STRchive
@@ -50,6 +56,7 @@ class Repeats(object):
         bed["id"] = (
             bed["chrom"] + ":" + bed["start"].astype(str) + "-" + bed["end"].astype(str)
         )
+        bed["build"] = build
         return bed.set_index("id")
 
     @staticmethod
@@ -74,42 +81,60 @@ class Repeats(object):
         """
         return sorted([len(m) for m in motifs], reverse=True)[0]
 
-    def motif_length(self, gene):
-        return self.df.loc[self.df["name"] == gene, "motif_length"].values[0]
+    def query(self, dataset, gene, column):
+        """
+        Generic method to query the dataframe based on a dataset, gene and column (or list of columns)
+        """
+        build = dataset.split("_")[1]
+        return self.df.loc[
+            (self.df["build"] == build) & self.df["gene"] == gene, column
+        ].values[0]
 
-    def motifs(self, gene):
-        return self.df.loc[self.df["name"] == gene, "motifs"].values[0]
+    def motif_length(self, gene, dataset=None, build=None):
+        if not build and not dataset:
+            raise ValueError("Either build or dataset must be given")
+        if dataset:
+            return self.query(dataset, gene, "motif_length")
+        else:
+            # use dummy dataset name
+            return self.query(f"dataset_{build}", gene, "motif_length")
 
-    def gene(self, id):
+    def motifs(self, gene, dataset):
+        return self.query(dataset, gene, "motifs")
+
+    def coords_to_gene(self, id, build):
         try:
-            return self.df.loc[id, "name"]
+            return self.df[self.df["build"] == build].loc[id, "name"]
         except KeyError:
             return None
 
-    def gene_to_coords(self, gene):
-        return self.df.loc[self.df["name"] == gene].index[0]
+    def gene_to_coords(self, gene, dataset):
+        build = dataset.split("_")[1]
+        return self.df.loc[
+            (self.df["name"] == gene) & (self.df["build"] == build)
+        ].index[0]
 
-    def pathogenic_min_length(self, gene):
-        return self.df.loc[self.df["name"] == gene, "pathogenic_min"].values[0]
+    def pathogenic_min_length(self, gene, dataset):
+        return self.query(dataset, gene, "pathogenic_min")
 
-    def reflen(self, gene, unit="units"):
+    def reflen(self, gene, dataset, unit="units"):
         if unit == "units":
-            return self.df.loc[self.df["name"] == gene, "reflen"].values[0]
+            return self.query(dataset, gene, "reflen")
         elif unit == "bp":
-            return self.df.loc[self.df["name"] == gene, "reflen"].values[
-                0
-            ] * self.motif_length(gene)
+            return self.query(dataset, gene, "reflen") * self.motif_length(
+                gene, dataset
+            )
         else:
             raise ValueError("unit must be 'bp' or 'units'")
 
-    def start(self, gene):
-        return self.df.loc[self.df["name"] == gene, "start"].values[0]
+    def start(self, gene, dataset):
+        return self.query(dataset, gene, "start")
 
-    def end(self, gene):
-        return self.df.loc[self.df["name"] == gene, "end"].values[0]
+    def end(self, gene, dataset):
+        return self.query(dataset, gene, "end")
 
-    def chrom(self, gene):
-        return self.df.loc[self.df["name"] == gene, "chrom"].values[0]
+    def chrom(self, gene, dataset):
+        return self.query(dataset, gene, "chrom")
 
-    def coords(self, gene):
-        return self.df.loc[self.df["name"] == gene, ["chrom", "start", "end"]].values[0]
+    def coords(self, gene, dataset):
+        return self.query(dataset, gene, ["chrom", "start", "end"])

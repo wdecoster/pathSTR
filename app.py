@@ -3,24 +3,24 @@
 
 
 import pandas as pd
+from argparse import ArgumentParser
+import os
+import logging
+from math import floor, ceil
+import sys
+
 import dash
 from dash import Dash, html, dcc, dash_table
 from dash.dependencies import Input, Output, State
 import dash_bootstrap_components as dbc
 import dash_daq as daq
+import dash_bio as dashbio
 
-
-from argparse import ArgumentParser
 import pathSTR.parse_input as parse
 from pathSTR.repeats import Repeats
 import pathSTR.plot as plot
 from pathSTR.version import __version__
 from pathSTR.count_kmers import parse_kmers
-import os
-import sys
-import logging
-from math import floor, ceil
-import dash_bio as dashbio
 
 
 def main():
@@ -352,8 +352,10 @@ def main():
                             html.Div(
                                 [
                                     html.P(
-                                        "Repeats used in this app are obtained from STRchive, genotyped for the coordinates below:"
+                                        "Repeats used in this app are obtained from STRchive, genotyped for the coordinates below [hg38]:"
                                     ),
+                                    # TODO make this responsive to the 'build' setting
+                                    # TODO clean this the fuck up - fugly table
                                     html.Div(
                                         dash_table.DataTable(
                                             repeats.df[
@@ -980,6 +982,7 @@ def main():
                 filtered_df,
                 repeats=repeats,  # show optionally the pathogenic length
                 selected_gene=selected_gene,
+                dataset=dataset,
                 violin_options=violin_show + violin_split,
                 publication_ready=publication_ready == "on",
             ),
@@ -1030,7 +1033,9 @@ def main():
         return plot.length_scatter(
             filtered_df,
             selected_gene,
-            path_length=repeats.pathogenic_min_length(selected_gene),  # optional
+            path_length=repeats.pathogenic_min_length(
+                selected_gene, dataset
+            ),  # optional
             violin_options=violin_show + violin_split,
             publication_ready=publication_ready == "on",
         )
@@ -1266,8 +1271,8 @@ def main():
             filtered_df = df[(df["gene"] == selected_gene) & (df["dataset"] == dataset)]
             # pathogenic lenght is in units of the motif length, so has to be converted to basepairs for this plot
             pathogenic_length = (
-                repeats.pathogenic_min_length(selected_gene)
-                * repeats.motif_length(selected_gene)
+                repeats.pathogenic_min_length(selected_gene, dataset)
+                * repeats.motif_length(selected_gene, dataset)
                 if show_pathogenic_length == "on"
                 else None
             )
@@ -1396,7 +1401,7 @@ def main():
                 return html.Div()
             if isinstance(individuals, str):
                 individuals = [individuals]
-            chrom, start, end = repeats.coords(gene)
+            chrom, start, end = repeats.coords(gene, dataset)
             build = dataset.split("_")[1]
             return html.Div(
                 [

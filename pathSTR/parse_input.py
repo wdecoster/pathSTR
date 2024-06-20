@@ -88,11 +88,15 @@ def parse_vcf(vcf, build, caller, repeats, name=None):
     for v in VCF(vcf):
         chrom = v.CHROM if v.CHROM.startswith("chr") else "chr" + v.CHROM
         if caller_ == "strdust":
-            gene = repeats.gene(f"{chrom}:{str(v.POS)}-{str(v.end)}")
+            gene = repeats.coords_to_gene(
+                f"{chrom}:{str(v.POS)}-{str(v.end)}", build=build
+            )
         elif caller_ == "longtr":
             # LongTR may adjust the POS field to include a SNV https://github.com/gymrek-lab/LongTR/issues/8
             start = v.INFO.get("START")
-            gene = repeats.gene(f"{chrom}:{str(start)}-{str(v.end)}")
+            gene = repeats.coords_to_gene(
+                f"{chrom}:{str(start)}-{str(v.end)}", build=build
+            )
         else:
             raise ValueError("Unexpected caller")
         if gene is None:
@@ -218,11 +222,15 @@ def parse_uploaded_vcf(contents, uploaded_filename, repeats, build, caller):
         )
         # for every repeat in the dataframe, divide the length and ref_diff by the motif length
         df["length"] = df.apply(
-            lambda x: round(x["length"] / repeats.motif_length(x["gene"]), 2),
+            lambda x: round(
+                x["length"] / repeats.motif_length(x["gene"], build=build), 2
+            ),
             axis=1,
         )
         df["ref_diff"] = df.apply(
-            lambda x: round(x["ref_diff"] / repeats.motif_length(x["gene"]), 2),
+            lambda x: round(
+                x["ref_diff"] / repeats.motif_length(x["gene"], build=build), 2
+            ),
             axis=1,
         )
         df["Group"] = "Uploaded"

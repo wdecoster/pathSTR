@@ -8,7 +8,12 @@ import plotly
 
 
 def violin_plot(
-    filtered_df, repeats, selected_gene, violin_options=None, publication_ready=False
+    filtered_df,
+    repeats,
+    selected_gene,
+    dataset,
+    violin_options=None,
+    publication_ready=False,
 ):
     if "density" in violin_options:
         fig = px.violin(
@@ -50,10 +55,10 @@ def violin_plot(
         # path length has to be corrected for the reference length
         # pathogenic length is in motif units, so the reflen has to be converted to motif units too
         path_length = (
-            repeats.pathogenic_min_length(selected_gene)
-            - repeats.reflen(selected_gene, unit="units")
+            repeats.pathogenic_min_length(selected_gene, dataset)
+            - repeats.reflen(selected_gene, dataset, unit="units")
             if "ref_diff" in violin_options
-            else repeats.pathogenic_min_length(selected_gene)
+            else repeats.pathogenic_min_length(selected_gene, dataset)
         )
         # if path_length is larger than the current y-axis, extend the y-axis
         if path_length > filtered_df["length"].max():

@@ -8,8 +8,8 @@ def parse_kmers(df, repeats, gene, dataset):
     gene_df = df[(df["gene"] == gene) & (df["dataset"] == dataset)]
     if len(gene_df) == 0:
         return pd.DataFrame()
-    motif_length = repeats.motif_length(gene)
-    known_motifs = repeats.motifs(gene)
+    motif_length = repeats.motif_length(gene, dataset=dataset)
+    known_motifs = repeats.motifs(gene, dataset=dataset)
     for sample, allele, seq in gene_df[["sample", "allele", "sequence"]].itertuples(
         index=False, name=None
     ):
