@@ -5,7 +5,7 @@ import sys
 
 class Repeats(object):
     def __init__(self, df=None, build=["hg38", "t2t"]):
-        if df:
+        if df is not None:
             self.df = df
         else:
             self.df = pd.concat(self.get_repeat_info(b) for b in build)
