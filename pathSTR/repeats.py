@@ -1,4 +1,6 @@
 import pandas as pd
+import logging
+import sys
 
 
 class Repeats(object):
@@ -86,9 +88,15 @@ class Repeats(object):
         Generic method to query the dataframe based on a dataset, gene and column (or list of columns)
         """
         build = dataset.split("_")[1]
-        return self.df.loc[
-            (self.df["build"] == build) & self.df["gene"] == gene, column
-        ].values[0]
+        try:
+            return self.df.loc[
+                (self.df["build"] == build) & (self.df["name"] == gene), column
+            ].values[0]
+        except IndexError:
+            logging.error(f"Query in repeats failed for {build}, {gene}, {column}")
+            logging.error(f"Dumping repeats object to repeats.tsv for debugging")
+            self.df.to_csv("repeats.tsv", sep="\t")
+            sys.exit(1)
 
     def motif_length(self, gene, dataset=None, build=None):
         if not build and not dataset:
