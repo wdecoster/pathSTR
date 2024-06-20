@@ -2,12 +2,13 @@
 1000G.pathSTRdb
 pathSTR/__pycache__/*
 pathSTR-1000G-dash.log
-pathSTR_STRdust_good_samples.zip
 om_090.vcf.gz
 1000G.pathSTRdb.old
-pathSTR_STRdust_good_samples_old.zip
 genotypes.fofn
 longtr.fofn
-pathSTR_LongTR_good_samples.zip
 strdust.fofn
 assets/overview-strip.png:Zone.Identifier
+pathSTR_longTR_hg38_good_samples.zip
+pathSTR_longTR_t2t_good_samples.zip
+pathSTR_STRdust_hg38_good_samples.zip
+pathSTR_STRdust_t2t_good_samples.zip
