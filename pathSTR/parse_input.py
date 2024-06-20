@@ -248,9 +248,11 @@ def create_details_table(df, repeats):
     """
     Reformat the df to an easier format for querying the details per individual
     """
+
     df["sequence_rle"] = df.apply(
         lambda x: rle(x["sequence"], repeats.motif_length(x["gene"])), axis=1
     )
+    logging.info("Creating run-length encoded sequences")
     df = (
         df.drop(columns=["Group", "chrom", "hg38_path", "sequence"])
         .round(1)
