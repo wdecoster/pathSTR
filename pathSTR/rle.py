@@ -51,7 +51,11 @@ def setup_graph(s, k):
     sink_node = graph.add_node("end")
 
     graph.add_edge(start_node, char_nodes[0], 1)
-    graph.add_edge(start_node, node_list[0][0], k + eps)
+    try:
+        graph.add_edge(start_node, node_list[0][0], k + eps)
+    except IndexError:
+        logging.error(f"IndexError (1) when creating rle-graph for {s} with k={k}")
+        return None, None
 
     graph.add_edge(char_nodes[-1], sink_node, 0)
     # which shift connects to the end
@@ -59,7 +63,7 @@ def setup_graph(s, k):
     try:
         graph.add_edge(node_list[m][-1], sink_node, 0)
     except IndexError:
-        logging.error(f"IndexError when creating rle-graph for {s} with k={k}")
+        logging.error(f"IndexError (2) when creating rle-graph for {s} with k={k}")
         return None, None
 
     nnodes = sink_node + 1
@@ -122,6 +126,8 @@ def rle(sequence, motif_length):
     """
     if not sequence:
         return None
+    elif len(sequence) < motif_length * 2:
+        return sequence
     else:
         p, graph = setup_graph(sequence, motif_length)
         if graph:
