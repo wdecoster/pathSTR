@@ -1,5 +1,6 @@
 from itertools import groupby
 import rustworkx
+import logging
 
 
 def setup_graph(s, k):
@@ -55,7 +56,11 @@ def setup_graph(s, k):
     graph.add_edge(char_nodes[-1], sink_node, 0)
     # which shift connects to the end
     m = len(s) % k
-    graph.add_edge(node_list[m][-1], sink_node, 0)
+    try:
+        graph.add_edge(node_list[m][-1], sink_node, 0)
+    except IndexError:
+        logging.error(f"IndexError when creating rle-graph for {s} with k={k}")
+        return None, None
 
     nnodes = sink_node + 1
     best_path_weight = [float("inf")] * nnodes
@@ -119,7 +124,10 @@ def rle(sequence, motif_length):
         return None
     else:
         p, graph = setup_graph(sequence, motif_length)
-        return make_rle(sequence, p, graph)
+        if graph:
+            return make_rle(sequence, p, graph)
+        else:
+            return None
 
 
 def to_subscript(n):
