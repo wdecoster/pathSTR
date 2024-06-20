@@ -200,7 +200,7 @@ rule all:
             build=["hg38"],
         ),
         longtr=expand(
-            os.path.join(work_dir, "pathSTR_longTR/{build}/{sample}.vcf.gz"),
+            os.path.join(work_dir, "pathSTR_LongTR/{build}/{sample}.vcf.gz"),
             sample=samples.dropna(subset=["hg38_path"]).index,
             build=["hg38"],
         ),
@@ -209,12 +209,12 @@ rule all:
             os.path.join(
                 work_dir, "pathSTR_{genotyper}_good_samples/{build}/good_samples.txt"
             ),
-            genotyper=["STRdust", "longTR"],
+            genotyper=["STRdust", "LongTR"],
             build=["hg38", "t2t"],
         ),
         good_samples_zip=expand(
             os.path.join(work_dir, "pathSTR_{genotyper}_{build}_good_samples.zip"),
-            genotyper=["STRdust", "longTR"],
+            genotyper=["STRdust", "LongTR"],
             build=["hg38", "t2t"],
         ),
         sex_check=os.path.join(work_dir, "plots/sex_check.html"),
@@ -271,9 +271,9 @@ rule strdust_unphased:
 rule longTR:
     # this rule uses a hacked version of LongTR, in which the check for existance of the input cram is removed (as the file is remote)
     output:
-        os.path.join(work_dir, "pathSTR_longTR/{build}/{sample}.vcf.gz"),
+        os.path.join(work_dir, "pathSTR_LongTR/{build}/{sample}.vcf.gz"),
     log:
-        os.path.join(work_dir, "logs/pathSTR_longTR/{build}/{sample}.log"),
+        os.path.join(work_dir, "logs/pathSTR_LongTR/{build}/{sample}.log"),
     params:
         cram=get_path,
         ref=get_ref,
