@@ -1446,8 +1446,12 @@ def main():
         prevent_initial_call=True,
     )
     def download_zip(n_clicks, dataset):
-        caller = dataset.split("_")[0]
-        return dcc.send_file(f"pathSTR_{caller}_good_samples.zip")
+        caller, build = dataset.split("_")
+        file = f"pathSTR_{caller}_{build}_good_samples.zip"
+        if not os.path.exists(file):
+            logging.error(f"Attempting to download but {file} does not exist")
+        else:
+            return dcc.send_file(f"pathSTR_{caller}_{build}_good_samples.zip")
 
     @app.callback(
         Output("user-data-table", "data"),
