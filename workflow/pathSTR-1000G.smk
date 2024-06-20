@@ -62,18 +62,17 @@ samples_vienna["t2t_path"] = (
 )
 samples_vienna["source"] = "Noyvert/Schloissnig"
 
-# MILLER
-samples_miller = pd.read_table(
-    os.path.join(work_dir, "data/list-miller-20240606.txt"),
+# GUSTAFSON
+samples_miller_all = pd.read_table(
+    os.path.join(work_dir, "data/list-miller-20240619.txt"),
     header=None,
     names=["filename"],
 )
 
-samples_miller_s3 = "https://s3.amazonaws.com/1000g-ont/"
 
 # This line is awful.
-samples_miller["sample"] = (
-    samples_miller["filename"]
+samples_miller_all["sample"] = (
+    samples_miller_all["filename"]
     .apply(lambda x: os.path.basename(x))
     .str.split("-")
     .str[0]
@@ -82,8 +81,20 @@ samples_miller["sample"] = (
     .str.replace("GM", "NA", regex=False)
 )
 
-samples_miller["hg38_path"] = samples_miller_s3 + samples_miller["filename"].astype(str)
-samples_miller["t2t_path"] = "not today"
+# extract the build from the filename, drop those for which that is not specified
+samples_miller_all[
+    "filename"
+] = "https://s3.amazonaws.com/1000g-ont/" + samples_miller_all["filename"].astype(str)
+samples_miller_all["build"] = samples_miller_all["filename"].apply(
+    lambda x: "hg38_path" if "hg38" in x else "t2t_path" if "chm13" in x else None
+)
+samples_miller_all = samples_miller_all.dropna(subset=["build"])
+
+# pivot the dataframe to have one row per sample, with the hg38 and t2t paths in separate columns
+samples_miller = samples_miller_all.pivot(
+    index="sample", columns="build", values="filename"
+).reset_index()
+
 samples_miller["source"] = "Gustafson"
 
 
@@ -100,8 +111,10 @@ samples = (
     .drop_duplicates(subset="sample", keep="last")
     .set_index("sample")
     .join(sample_info)
-    .dropna()
+    .dropna(subset=["Sex", "Superpopulation code"])
+    .drop(columns="filename")
 )
+
 print("\nSources and samples in study:")
 print(samples["source"].value_counts().to_string() + "\n")
 
@@ -135,28 +148,39 @@ def get_sex(wildcards):
     return samples.loc[wildcards.sample, "Sex"]
 
 
+def get_vcfs(wildcards):
+    return [
+        os.path.join(
+            work_dir, f"pathSTR_{wildcards.genotyper}/{wildcards.build}/{s}.vcf.gz"
+        )
+        for s in samples.dropna(subset=[f"{wildcards.build}_path"]).index.to_list()
+    ]
+
+
 rule all:
     input:
         strdust=expand(
             os.path.join(work_dir, "pathSTR_STRdust/{build}/{sample}.vcf.gz"),
-            sample=samples.index,
+            sample=samples.dropna(subset=["hg38_path"]).index,
             build=["hg38"],
         ),
         longtr=expand(
             os.path.join(work_dir, "pathSTR_longTR/{build}/{sample}.vcf.gz"),
-            sample=samples.index,
+            sample=samples.dropna(subset=["hg38_path"]).index,
             build=["hg38"],
         ),
         length_vs_yield=os.path.join(work_dir, "plots/yield_vs_length.html"),
         good_samples=expand(
             os.path.join(
-                work_dir, "pathSTR_{genotyper}_good_samples/hg38/good_samples.txt"
+                work_dir, "pathSTR_{genotyper}_good_samples/{build}/good_samples.txt"
             ),
             genotyper=["STRdust", "longTR"],
+            build=["hg38", "t2t"],
         ),
         good_samples_zip=expand(
-            os.path.join(work_dir, "pathSTR_{genotyper}_good_samples.zip"),
+            os.path.join(work_dir, "pathSTR_{genotyper}_{build}_good_samples.zip"),
             genotyper=["STRdust", "longTR"],
+            build=["hg38", "t2t"],
         ),
         sex_check=os.path.join(work_dir, "plots/sex_check.html"),
 
@@ -337,17 +361,21 @@ rule plot_length_vs_yield:
         "/home/wdecoster/miniconda3/envs/pandas_plotly/bin/python {params.script} -i {input} -s {params.sample_info} -o {output} 2> {log}"
 
 
+# this rule uses, regardless of the build, the hg38 good samples
+# this is under the assumption that the good samples are the same for both builds
+# and that for every sample with a t2t path, there is also a hg38 path
+# the other way around is not necessarily true
+# this may eventually be a problem, but for now it avoids to rerun cramino on the same samples for another build
 rule copy_good_samples:
     input:
+        vcfs=get_vcfs,
         overview=os.path.join(work_dir, "cramino/hg38/cramino_all.tsv"),
-        vcfs=expand(
-            os.path.join(work_dir, "pathSTR_{{genotyper}}/hg38/{sample}.vcf.gz"),
-            sample=samples.index,
-        ),
     output:
-        os.path.join(work_dir, "pathSTR_{genotyper}_good_samples/hg38/good_samples.txt"),
+        os.path.join(
+            work_dir, "pathSTR_{genotyper}_good_samples/{build}/good_samples.txt"
+        ),
     log:
-        "logs/copy_good_samples_{genotyper}.log",
+        "logs/copy_good_samples_{genotyper}_{build}.log",
     conda:
         "/home/wdecoster/pathSTR-1000G/envs/pandas_plotly.yml"
     params:
@@ -358,11 +386,14 @@ rule copy_good_samples:
 
 rule zip_good_samples:
     input:
-        os.path.join(work_dir, "pathSTR_{genotyper}_good_samples/hg38/good_samples.txt"),  #doesn't actually use that file, just needs to know it has been created
+        os.path.join(
+            work_dir, "pathSTR_{genotyper}_good_samples/{build}/good_samples.txt"
+        ),
+        #doesn't actually use that file, just needs to know it has been created
     output:
-        os.path.join(work_dir, "pathSTR_{genotyper}_good_samples.zip"),
+        os.path.join(work_dir, "pathSTR_{genotyper}_{build}_good_samples.zip"),
     log:
-        "logs/zip_good_samples_{genotyper}.log",
+        "logs/zip_good_samples_{genotyper}_{build}.log",
     shell:
         "work_dir=$(dirname {input}) && zip -r -j {output} $work_dir &> {log}"
 
