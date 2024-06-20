@@ -2,12 +2,16 @@
 
 from argparse import ArgumentParser
 import glob
+import sys
 
 
 def main():
     args = get_args()
+    i = 0
     for vcf in glob.glob(f"{args.vcf_dir}/*.vcf.gz"):
         print(f"{vcf}\t{args.build}\t{args.caller}")
+        i += 1
+    sys.stderr.write(f"Created fofn for {i} VCF files\n")
 
 
 def get_args():
