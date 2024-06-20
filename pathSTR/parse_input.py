@@ -55,11 +55,15 @@ def parse_input(vcf_fofn, sample_info, repeats):
     ).assign(Group="1000 Genomes")
 
     # for every repeat in the dataframe, divide the length by the motif length
+    # playing a bit of a tricky game here, as the motif length for hg38 is used
+    # this is under the very reasonable assumption that the motif length is the same for all genome builds
+    # it is, at this stage, rather hard to run this function for multiple builds
+    # but maybe one day this comes back to bite us
     df["length"] = df.apply(
-        lambda x: x["length"] / repeats.motif_length(x["gene"]), axis=1
+        lambda x: x["length"] / repeats.motif_length(x["gene"], build="hg38"), axis=1
     ).round(2)
     df["ref_diff"] = df.apply(
-        lambda x: x["ref_diff"] / repeats.motif_length(x["gene"]), axis=1
+        lambda x: x["ref_diff"] / repeats.motif_length(x["gene"], build="hg38"), axis=1
     ).round(2)
     # Remove duplicate hits for males on chrX
     df = df[
@@ -100,7 +104,9 @@ def parse_vcf(vcf, build, caller, repeats, name=None):
         else:
             raise ValueError("Unexpected caller")
         if gene is None:
-            print(f"Skipping {chrom}:{str(v.POS)}-{str(v.end)} - not in bed file.")
+            logging.warning(
+                f"Skipping {chrom}:{str(v.POS)}-{str(v.end)} from {caller}:{build} in {vcf} - interval not found in bed file."
+            )
             continue
         if caller_ == "strdust":
             full_lengths = v.format("FRB")[0]
@@ -248,9 +254,13 @@ def create_details_table(df, repeats):
     """
     Reformat the df to an easier format for querying the details per individual
     """
-
+    # playing a bit of a tricky game here, as the motif length for hg38 is used
+    # this is under the very reasonable assumption that the motif length is the same for all genome builds
+    # it is, at this stage, rather hard to run this function for multiple builds
+    # but maybe one day this comes back to bite us
     df["sequence_rle"] = df.apply(
-        lambda x: rle(x["sequence"], repeats.motif_length(x["gene"])), axis=1
+        lambda x: rle(x["sequence"], repeats.motif_length(x["gene"], build="hg38")),
+        axis=1,
     )
     logging.info("Creating run-length encoded sequences")
     df = (
