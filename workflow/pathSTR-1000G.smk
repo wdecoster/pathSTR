@@ -13,6 +13,8 @@ def parse_motifs(info):
 work_dir = "/home/wdecoster/pathSTR-1000G/"
 strdust = "/home/wdecoster/repositories/STRdust/target/release/STRdust"
 longTR = "/home/wdecoster/repositories/LongTR/LongTR"  # hacked version of LongTR to enable remote cram
+
+## setting up loci to target from STRchive
 strchive = pd.read_csv(
     "https://raw.githubusercontent.com/hdashnow/STRchive/main/data/hg38.STRchive-disease-loci.TRGT.bed",
     sep="\t",
@@ -29,6 +31,25 @@ strchive["num_copies"] = (strchive["end"] - strchive["start"]) / strchive[
 targets_longtr = os.path.join(work_dir, "data/STRchive_LongTR.bed")
 strchive[["chrom", "start", "end", "motif_length", "num_copies"]].to_csv(
     targets_longtr,
+    sep="\t",
+    index=False,
+    header=False,
+)
+strchive_t2t = pd.read_csv(
+    "https://raw.githubusercontent.com/hdashnow/STRchive/main/data/T2T-chm13.STRchive-disease-loci.TRGT.bed",
+    sep="\t",
+    header=None,
+    names=["chrom", "start", "end", "info"],
+)
+targets_strdust_t2t = os.path.join(work_dir, "data/STRchive_STRdust_t2t.bed")
+strchive_t2t.to_csv(targets_strdust_t2t, sep="\t", index=False, header=False)
+strchive_t2t["motif_length"] = strchive_t2t["info"].apply(lambda x: parse_motifs(x))
+strchive_t2t["num_copies"] = (
+    strchive_t2t["end"] - strchive_t2t["start"]
+) / strchive_t2t["motif_length"]
+targets_longtr_t2t = os.path.join(work_dir, "data/STRchive_LongTR_t2t.bed")
+strchive_t2t[["chrom", "start", "end", "motif_length", "num_copies"]].to_csv(
+    targets_longtr_t2t,
     sep="\t",
     index=False,
     header=False,
@@ -132,6 +153,20 @@ def get_ref(wildcards):
     }[wildcards.build]
 
 
+def get_targets_strdust(wildcards):
+    return {
+        "hg38": targets_strdust,
+        "t2t": targets_strdust_t2t,
+    }[wildcards.build]
+
+
+def get_targets_longtr(wildcards):
+    return {
+        "hg38": targets_longtr,
+        "t2t": targets_longtr_t2t,
+    }[wildcards.build]
+
+
 def get_path(wildcards):
     return samples.loc[wildcards.sample, f"{wildcards.build}_path"]
 
@@ -214,7 +249,7 @@ rule strdust_unphased:
     params:
         cram=get_path,
         ref=get_ref,
-        targets=targets_strdust,
+        targets=get_targets_strdust,
         binary=strdust,
         haploid_chroms=get_haploid_chroms,
     conda:
@@ -244,7 +279,7 @@ rule longTR:
         ref=get_ref,
         sample="{wildcards.sample}",
         sex=get_sex,
-        targets=targets_longtr,
+        targets=get_targets_longtr,
         binary=longTR,
     shell:
         """{params.binary} \
