@@ -516,6 +516,10 @@ def main():
                                                     id="kmer_mode",
                                                     options=[
                                                         {
+                                                            "label": "Sequence",
+                                                            "value": "sequence",
+                                                        },
+                                                        {
                                                             "label": "Collapsed",
                                                             "value": "collapsed",
                                                         },
@@ -523,12 +527,8 @@ def main():
                                                             "label": "Raw",
                                                             "value": "raw",
                                                         },
-                                                        {
-                                                            "label": "Sequence",
-                                                            "value": "sequence",
-                                                        },
                                                     ],
-                                                    value="collapsed",
+                                                    value="sequence",
                                                     inline=True,
                                                     style={"display": "flex"},
                                                 ),
