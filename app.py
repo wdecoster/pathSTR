@@ -358,13 +358,14 @@ def main():
                                     # TODO clean this the fuck up - fugly table
                                     html.Div(
                                         dash_table.DataTable(
-                                            repeats.df[
+                                            repeats.df.loc[
+                                                repeats.df["build"] == "hg38",
                                                 [
                                                     "chrom",
                                                     "start",
                                                     "end",
                                                     "name",
-                                                ]
+                                                ],
                                             ].to_dict("records"),
                                             [
                                                 {"name": i, "id": i}
