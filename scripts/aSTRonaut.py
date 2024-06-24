@@ -107,13 +107,13 @@ def plot_sequence(repeat_df, kmers, repeat, args):
         hover_data=["kmer"],
         labels={
             "range": "Nucleotide position in repeat",
-            "identifier": "Sample/allele",
+            "identifier": "Sample/allele" if not args.somatic else "Reads",
         },
         title=f"Repeat at {repeat}",
         category_orders={"identifier": repeat_df["identifier"][::-1]},
     )
 
-    fig.update_traces(marker=dict(size=3))
+    fig.update_traces(marker=dict(size=args.size))
     fig.update_xaxes(tickfont_size=20)
     if args.hide_labels:
         fig.update_yaxes(showticklabels=False)
@@ -136,7 +136,7 @@ def plot_sequence(repeat_df, kmers, repeat, args):
         fig.update_layout(
             plot_bgcolor="rgba(0, 0, 0, 0)",
             paper_bgcolor="rgba(0, 0, 0, 0)",
-            font=dict(size=16),
+            font=dict(size=24),
             title=args.title,
         )
         fig.update_xaxes(showline=True, linewidth=2, linecolor="black", mirror=True)
@@ -232,7 +232,7 @@ def parse_input(args):
     :param repeat: coordinates of the repeat to extract, or None if all have to be extracted
     """
     # read in the VCFs
-    calls = [parse_vcf(vcf, args.repeat, args.minlen) for vcf in args.vcf]
+    calls = [parse_vcf(vcf, args.repeat, args.minlen, args.somatic) for vcf in args.vcf]
     # make a dataframe and join with the sample info
     df = pd.DataFrame(
         flatten(calls),
@@ -246,7 +246,7 @@ def parse_input(args):
     return df
 
 
-def parse_vcf(vcf, repeat=None, minlen=20):
+def parse_vcf(vcf, repeat=None, minlen=20, somatic=False):
     """
     Parse a VCF file and return a list of sequences
     :param vcf: path to the VCF file
@@ -259,10 +259,24 @@ def parse_vcf(vcf, repeat=None, minlen=20):
         if repeat and coords != repeat:
             continue
         sequences = parse_alts(v.ALT, v.genotypes[0])
+        if somatic:
+            somatic_sequences = v.INFO.get("SEQS").split(",")
         if sequences[0] and len(sequences[0]) > minlen:
-            calls.append((coords, name, "Allele1", sequences[0]))
+            if somatic:
+                if len(somatic_sequences) > 0:
+                    for i, s in enumerate(somatic_sequences[0].split(":")):
+                        if len(s) > minlen:
+                            calls.append((coords, name, f"Allele1_{i}", s))
+            else:
+                calls.append((coords, name, "Allele1", sequences[0]))
         if sequences[1] and len(sequences[1]) > minlen:
-            calls.append((coords, name, "Allele2", sequences[1]))
+            if somatic:
+                if len(somatic_sequences) > 1:
+                    for i, s in enumerate(somatic_sequences[1].split(":")):
+                        if len(s) > minlen:
+                            calls.append((coords, name, f"Allele2_{i}", s))
+            else:
+                calls.append((coords, name, "Allele2", sequences[1]))
     return calls
 
 
@@ -331,6 +345,12 @@ def get_args():
     parser.add_argument(
         "--sampleinfo", help="TSV file with sample information", default=None
     )
+    parser.add_argument(
+        "--somatic",
+        help="Parse somatic VCFs, expects a SEQS format field",
+        action="store_true",
+    )
+    parser.add_argument("--size", help="Size of markers to plot", default=3, type=int)
     return parser.parse_args()
 
 
