@@ -221,7 +221,7 @@ def main():
                                     ),
                                     html.P(
                                         [
-                                            "You can upload your own VCF.gz file(s) (genotyped with STRdust or LongTR) to show alongside the 1000 Genomes data for comparison. Uploading data is currently limited to 100kb files, please let me know if more would be required. For genotyping with STRdust, use the --pathogenic flag. Note that as the app cannot figure out the sex of your individuals, males will show two alleles on haploid chromosomes. This is corrected for samples in the 1000 Genomes cohort. "
+                                            "You can upload your own VCF.gz file(s) (genotyped with STRdust or LongTR) to show alongside the 1000 Genomes data for comparison. Uploaded files are only processed in memory and not stored on the server. Uploading data is currently limited to 100kb files, please let me know if more would be required. For genotyping with STRdust, use the --pathogenic flag. Note that as the app cannot figure out the sex of your individuals, males will show two alleles on haploid chromosomes. This is corrected for samples in the 1000 Genomes cohort. "
                                             "The repeat coordinates and motifs used in this app are obtained from ",
                                             html.A(
                                                 "STRchive",
@@ -831,7 +831,7 @@ def main():
                                         html.A(
                                             "click to upload VCF.gz files (hg38) with STR genotypes"
                                         ),
-                                        " to show your data in the plots",
+                                        " to show your data in the plots.",
                                     ]
                                 ),
                                 style={
