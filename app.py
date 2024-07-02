@@ -109,6 +109,7 @@ def main():
         {"label": dataset, "value": dataset}
         for dataset in df["dataset"].unique().tolist()
     ]
+    colormaps = plot.get_colormaps()
 
     tabs_styles = {"height": "60px"}
     tab_style = {
@@ -609,6 +610,27 @@ def main():
                                                                             ],
                                                                             multi=False,
                                                                             value="left-to-right",
+                                                                            placeholder="",
+                                                                        ),
+                                                                        width=2,
+                                                                    ),
+                                                                ],
+                                                                align="center",
+                                                            ),
+                                                            dbc.Row(
+                                                                [
+                                                                    dbc.Col(
+                                                                        html.Label(
+                                                                            "Colormap:"
+                                                                        ),
+                                                                        width=3,
+                                                                    ),
+                                                                    dbc.Col(
+                                                                        dcc.Dropdown(
+                                                                            id="kmer-options-sequence-colormap",
+                                                                            options=colormaps + ["default"],
+                                                                            multi=False,
+                                                                            value="default",
                                                                             placeholder="",
                                                                         ),
                                                                         width=2,
@@ -1198,8 +1220,6 @@ def main():
         :param length_range: minimal and maximal length of the repeats to show
         :param stored_df: uploaded data
         :param collapsed_group_min_size: minimal group size to show in the collapsed mode
-        :param raw_sort: column to sort the raw kmer composition on
-        :param sequence_direction: direction to show the sequence kmer composition in
         :param publication_ready: whether to show a publication-ready plot
         :param dataset: dataset to show the kmer composition for
         """
@@ -1232,6 +1252,7 @@ def main():
             Input("repeat-len-slider", "value"),
             Input("stored-df", "data"),
             Input("kmer-options-sequence-direction", "value"),
+            Input("kmer-options-sequence-colormap", "value"),
             Input("kmer-options-sequence-pathlen", "value"),
             State("publication-ready", "value"),
             Input("dropdown-dataset", "value"),
@@ -1244,6 +1265,7 @@ def main():
         length_range,
         stored_df,
         sequence_direction,
+        sequence_colormap,
         show_pathogenic_length,
         publication_ready,
         dataset,
@@ -1285,6 +1307,7 @@ def main():
                 length_range=length_range,
                 direction=sequence_direction,
                 publication_ready=publication_ready == "on",
+                colormap=sequence_colormap,
             )
         else:
             return dash.no_update

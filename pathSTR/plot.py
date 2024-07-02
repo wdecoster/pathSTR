@@ -457,6 +457,7 @@ def kmer_plot_sequence(
     length_range=None,
     direction="left-to-right",
     publication_ready=False,
+    colormap="default",
 ):
     """
     Create plots of kmers found in the repeat sequences.
@@ -487,18 +488,23 @@ def kmer_plot_sequence(
 
     # using only the 10 most frequent kmers by limiting kmer_df to the first 10 columns
     # assign a color to each kmer
-    colors = [
-        "rgb(31, 119, 180)",
-        "rgb(255, 127, 14)",
-        "rgb(44, 160, 44)",
-        "rgb(214, 39, 40)",
-        "rgb(148, 103, 189)",
-        "rgb(140, 86, 75)",
-        "rgb(227, 119, 194)",
-        "rgb(127, 127, 127)",
-        "rgb(188, 189, 34)",
-        "rgb(23, 190, 207)",
-    ]
+    if colormap == "default":
+        colors = [
+            "rgb(31, 119, 180)",
+            "rgb(255, 127, 14)",
+            "rgb(44, 160, 44)",
+            "rgb(214, 39, 40)",
+            "rgb(148, 103, 189)",
+            "rgb(140, 86, 75)",
+            "rgb(227, 119, 194)",
+            "rgb(127, 127, 127)",
+            "rgb(188, 189, 34)",
+            "rgb(23, 190, 207)",
+        ]
+    else:
+        colors = vars(px.colors.qualitative)[colormap]
+        if not colors[0].startswith("rgb"):
+            colors = [hex_to_rgb(c) for c in colors]
     kmer_dict = {k: c for k, c in zip(kmer_df.columns[:10], colors)}
     inverse_dict = {v: k for k, v in kmer_dict.items()}
     inverse_dict["rgb(128, 128, 128)"] = "other"
@@ -614,3 +620,27 @@ def get_height(num_samples):
     Return the height of the plot based on the number of samples
     """
     return max(50, num_samples)
+
+
+def get_colormaps():
+    """
+    Return the available colormaps in plotly.express
+    This is a bit of a hack, as I couldn't find a way to explicitly get the available colormaps
+    If other things like swatches are added to the px.colors.qualitative module, this will create a nonsensical option
+    However, this is also how plotly does it internally.
+    I also eliminate the grey color, as that one is used for the "other" category
+    This does not exclude that there are very similar greys
+    """
+    return [
+        k
+        for (k, v) in vars(px.colors.qualitative).items()
+        if not k.startswith("_")
+        and not k == "swatches"
+        and not "rgb(128, 128, 128)" in v
+    ]
+
+
+def hex_to_rgb(hex):
+    hex = hex.lstrip("#")
+    tup = tuple(int(hex[i : i + 2], 16) for i in (0, 2, 4))
+    return f"rgb{tup}"
