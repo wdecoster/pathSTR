@@ -15,10 +15,17 @@ def violin_plot(
     violin_options=None,
     publication_ready=False,
 ):
+    if "population" in violin_options:
+        x_val = "Superpopulation"
+    elif "sex" in violin_options:
+        x_val = "Sex"
+    else:
+        x_val = "gene"
+
     if "density" in violin_options:
         fig = px.violin(
             filtered_df,
-            x="Superpopulation" if "population" in violin_options else "gene",
+            x=x_val,
             y="ref_diff" if "ref_diff" in violin_options else "length",
             color="Sex" if "sex" in violin_options else "Group",
             log_y="log" in violin_options,
@@ -29,7 +36,7 @@ def violin_plot(
     else:
         fig = px.strip(
             filtered_df,
-            x="Superpopulation" if "population" in violin_options else "gene",
+            x=x_val,
             y="ref_diff" if "ref_diff" in violin_options else "length",
             color="Sex" if "sex" in violin_options else "Group",
             log_y="log" in violin_options,
@@ -43,11 +50,10 @@ def violin_plot(
             if "log" in violin_options
             else "Repeat length [units]"
         ),
-        title_text=f"Length distribution of <i>{selected_gene}</i> repeat",
+        title_text=f"Length distribution of the <i>{selected_gene}</i> repeat",
     )
-    if filtered_df["Group"].nunique() > 1 and "sex" not in violin_options:
-        fig.update_layout(legend_title_text="Group")
-    elif "sex" in violin_options:
+    if "sex" in violin_options and "population" in violin_options:
+        # if both sex and population are to be shown, violins are split on population and colored by sex
         fig.update_layout(legend_title_text="Sex")
     else:
         fig.update_layout(showlegend=False)
@@ -69,10 +75,10 @@ def violin_plot(
         fig.add_hline(y=path_length, line_dash="dot", line_color="red")
     if publication_ready:
         fig.update_layout(
-            font=dict(size=20),
+            font=dict(size=24),
             legend=dict(
-                title_font=dict(size=16),
-                font=dict(size=16),
+                title_font=dict(size=20),
+                font=dict(size=20),
             ),
             plot_bgcolor="white",
             width=800,
@@ -153,7 +159,7 @@ def length_scatter(
             ),
             xaxis="x",
             yaxis="y",
-            colorscale="Blues",
+            colorscale=[(0, "white"), (1, "darkblue")],
             showscale=False,
         )
     scatters = px.scatter(
@@ -212,14 +218,15 @@ def length_scatter(
         xaxis_title="Repeat length longer allele [units]",
         yaxis_title="Repeat length shorter allele [units]",
         plot_bgcolor="rgba(0, 0, 0, 0)",
+        title=f"Lengths per allele of the <i>{selected_gene}</i> repeat",
     )
 
     if publication_ready:
         fig.update_layout(
-            font=dict(size=20),
+            font=dict(size=24),
             legend=dict(
-                title_font=dict(size=16),
-                font=dict(size=16),
+                title_font=dict(size=20),
+                font=dict(size=20),
             ),
             plot_bgcolor="white",
             width=800,
@@ -419,11 +426,11 @@ def kmer_plot_collapsed(
     )
 
     # make the axis labels a bit smaller
-    fig.update_xaxes(tickfont_size=8, tickangle=45)
+    fig.update_xaxes(tickfont_size=8, tickangle=-45)
     fig.update_yaxes(visible=False, showticklabels=False)
     fig.update_layout(
         {
-            "title_text": f"Kmer frequency for <i>{selected_gene}</i> repeat",
+            "title_text": f"Kmer frequency for the <i>{selected_gene}</i> repeat",
             "plot_bgcolor": "white",
             "paper_bgcolor": "white",
             "height": 1200,
@@ -435,17 +442,17 @@ def kmer_plot_collapsed(
     fig.update_coloraxes(colorscale=[(0, "white"), (1, "darkblue")])
     if publication_ready:
         fig.update_layout(
-            font=dict(size=16),
+            font=dict(size=20),
             legend=dict(
-                title_font=dict(size=16),
-                font=dict(size=16),
+                title_font=dict(size=20),
+                font=dict(size=20),
             ),
             plot_bgcolor="white",
             width=800,
             height=800,
         )
         # increase font size of axis labels
-        fig.update_xaxes(tickfont_size=12)
+        fig.update_xaxes(tickfont_size=16)
     return fig
 
 
@@ -584,20 +591,30 @@ def kmer_plot_sequence(
         height=get_height(len(repeat_df)),
         width=get_width(repeat_df["sequence"].apply(lambda x: len(x)).max()),
     )
-    if publication_ready:
-        fig.update_layout(
-            font=dict(size=16),
-            legend=dict(
-                title_font=dict(size=16),
-                font=dict(size=16),
-            ),
-        )
     # change the size of the dots in the legend
     fig.update_layout(
         legend={"itemsizing": "constant"},
         plot_bgcolor="rgba(0, 0, 0, 0)",
         paper_bgcolor="rgba(0, 0, 0, 0)",
     )
+    if publication_ready:
+        fig.update_layout(
+            font=dict(size=24),
+            legend=dict(
+                title_font=dict(size=20),
+                font=dict(size=20),
+            ),
+        )
+        # making some assumptions on what publication-ready could mean, to be revisited if needed
+        fig.update_yaxes(showticklabels=False)
+        # move the legend inside the figure area to the top right of the plot
+        fig.update_layout(
+            legend=dict(
+                x=0.9,
+                y=1,
+                traceorder="normal",
+            )
+        )
     return fig
 
 
