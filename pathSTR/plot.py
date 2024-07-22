@@ -43,7 +43,7 @@ def violin_plot(
             if "log" in violin_options
             else "Repeat length [units]"
         ),
-        title_text=f"Length distribution of {selected_gene} repeat",
+        title_text=f"Length distribution of <i>{selected_gene}</i> repeat",
     )
     if filtered_df["Group"].nunique() > 1 and "sex" not in violin_options:
         fig.update_layout(legend_title_text="Group")
@@ -171,7 +171,7 @@ def length_scatter(
             "ref_diff_longest",
             "ref_diff_shortest",
         ],
-        title=f"Lengths per allele of {selected_gene} repeat",
+        title=f"Lengths per allele of <i>{selected_gene}</i> repeat",
     )["data"]
     for s in scatters:
         fig.add_trace(s)
@@ -324,7 +324,7 @@ def kmer_plot_raw(
 
     fig.update_layout(
         dict(
-            title_text=f"Kmer frequency for {selected_gene} repeat",
+            title_text=f"Kmer frequency for <i>{selected_gene}</i> repeat",
             plot_bgcolor="rgba(0, 0, 0, 0)",
             paper_bgcolor="rgba(0, 0, 0, 0)",
             height=height,
@@ -423,7 +423,7 @@ def kmer_plot_collapsed(
     fig.update_yaxes(visible=False, showticklabels=False)
     fig.update_layout(
         {
-            "title_text": f"Kmer frequency for {selected_gene} repeat",
+            "title_text": f"Kmer frequency for <i>{selected_gene}</i> repeat",
             "plot_bgcolor": "white",
             "paper_bgcolor": "white",
             "height": 1200,
@@ -570,7 +570,7 @@ def kmer_plot_sequence(
             "identifier": "Sample/allele",
         },
         category_orders={"identifier": repeat_df["identifier"][::-1]},
-        title=f"Sequence of {selected_gene} repeat",
+        title=f"Sequence of <i>{selected_gene}</i> repeat",
     )
     fig.update_traces(marker=dict(size=3))
     # make the y axis labels a bit smaller
