@@ -331,7 +331,7 @@ def kmer_plot_raw(
 
     fig.update_layout(
         dict(
-            title_text=f"Kmer frequency for <i>{selected_gene}</i> repeat",
+            title_text=f"<i>k</i>-mer frequency for the <i>{selected_gene}</i> repeat",
             plot_bgcolor="rgba(0, 0, 0, 0)",
             paper_bgcolor="rgba(0, 0, 0, 0)",
             height=height,
@@ -403,7 +403,7 @@ def kmer_plot_collapsed(
         cols=2,
         column_widths=[0.8, 0.2],
         shared_yaxes=True,
-        subplot_titles=("Kmer frequency", "Number of carriers"),
+        subplot_titles=("<i>k</i>-mer frequency", "Number of carriers"),
     )
 
     fig.add_trace(
@@ -430,7 +430,7 @@ def kmer_plot_collapsed(
     fig.update_yaxes(visible=False, showticklabels=False)
     fig.update_layout(
         {
-            "title_text": f"Kmer frequency for the <i>{selected_gene}</i> repeat",
+            "title_text": f"<i>k</i>-mer frequency for the <i>{selected_gene}</i> repeat",
             "plot_bgcolor": "white",
             "paper_bgcolor": "white",
             "height": 1200,
