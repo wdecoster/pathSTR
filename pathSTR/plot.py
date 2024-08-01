@@ -594,8 +594,9 @@ def kmer_plot_sequence(
     # change the size of the dots in the legend
     fig.update_layout(
         legend={"itemsizing": "constant"},
-        plot_bgcolor="rgba(0, 0, 0, 0)",
-        paper_bgcolor="rgba(0, 0, 0, 0)",
+        plot_bgcolor="white",
+        paper_bgcolor="white",
+        legend_title_text="<i>k</i>-mer",
     )
     if publication_ready:
         fig.update_layout(
