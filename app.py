@@ -371,6 +371,31 @@ def main():
                                                         ],
                                                         align="center",
                                                     ),
+                                                    dbc.Row(
+                                                        [
+                                                            dbc.Col(
+                                                                html.Label(
+                                                                    "Select output format to export figures:",
+                                                                ),
+                                                                width=2,
+                                                            ),
+                                                            dbc.Col(
+                                                                dcc.Dropdown(
+                                                                    id="dropdown-figure-format",
+                                                                    options=[
+                                                                        "png",
+                                                                        "jpeg",
+                                                                        "webp",
+                                                                        "svg",
+                                                                    ],
+                                                                    value="jpeg",
+                                                                    clearable=False,
+                                                                ),
+                                                                width=2,
+                                                            ),
+                                                        ],
+                                                        align="center",
+                                                    ),
                                                 ],
                                                 style={
                                                     "width": "60%",
@@ -1619,6 +1644,34 @@ def main():
         ]
 
         return user_df.to_dict("records"), columns
+
+    # make a callback for EACH graph to update the output format based on the dropdown dropdown-figure-format
+    @app.callback(
+        Output("violin-plot", "config"),
+        Output("length-scatter", "config"),
+        Output("kmer-composition-raw", "config"),
+        Output("kmer-composition-sequence", "config"),
+        Output("kmer-composition-collapsed", "config"),
+        Input("dropdown-figure-format", "value"),
+    )
+    def update_output_format(format):
+        return (
+            {"toImageButtonOptions": {"format": format, "filename": "pathSTR_violin"}},
+            {"toImageButtonOptions": {"format": format, "filename": "pathSTR_scatter"}},
+            {"toImageButtonOptions": {"format": format, "filename": "pathSTR_raw"}},
+            {
+                "toImageButtonOptions": {
+                    "format": format,
+                    "filename": "pathSTR_sequence",
+                }
+            },
+            {
+                "toImageButtonOptions": {
+                    "format": format,
+                    "filename": "pathSTR_collapsed",
+                }
+            },
+        )
 
     app.title = "pathSTR"
     # Run the app
