@@ -260,7 +260,11 @@ def parse_vcf(vcf, repeat=None, minlen=20, somatic=False):
             continue
         sequences = parse_alts(v.ALT, v.genotypes[0])
         if somatic:
-            somatic_sequences = v.INFO.get("SEQS").split(",")
+            if v.INFO.get("SEQS") is None:
+                sys.stderr.write("WARNING: No SEQS field found in VCF, skipping\n")
+                return []
+            else:
+                somatic_sequences = v.INFO.get("SEQS").split(",")
         if sequences[0] and len(sequences[0]) > minlen:
             if somatic:
                 if len(somatic_sequences) > 0:
