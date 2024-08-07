@@ -232,7 +232,7 @@ def parse_input(args):
     :param repeat: coordinates of the repeat to extract, or None if all have to be extracted
     """
     # read in the VCFs
-    calls = [parse_vcf(vcf, args.repeat, args.minlen, args.somatic) for vcf in args.vcf]
+    calls = [parse_vcf(vcf, args) for vcf in args.vcf]
     # make a dataframe and join with the sample info
     df = pd.DataFrame(
         flatten(calls),
@@ -246,7 +246,7 @@ def parse_input(args):
     return df
 
 
-def parse_vcf(vcf, repeat=None, minlen=20, somatic=False):
+def parse_vcf(vcf, args):
     """
     Parse a VCF file and return a list of sequences
     :param vcf: path to the VCF file
@@ -256,31 +256,36 @@ def parse_vcf(vcf, repeat=None, minlen=20, somatic=False):
     name = os.path.basename(vcf).replace(".vcf.gz", "")
     for v in VCF(vcf):
         coords = f"{v.CHROM}:{v.POS}"
-        if repeat and coords != repeat:
+        if args.repeat and coords != args.repeat:
             continue
         sequences = parse_alts(v.ALT, v.genotypes[0])
-        if somatic:
+        if args.somatic:
             if v.INFO.get("SEQS") is None:
                 sys.stderr.write("WARNING: No SEQS field found in VCF, skipping\n")
                 return []
             else:
                 somatic_sequences = v.INFO.get("SEQS").split(",")
-        if sequences[0] and len(sequences[0]) > minlen:
-            if somatic:
+        if sequences[0] and len(sequences[0]) > args.minlen:
+            if args.somatic:
                 if len(somatic_sequences) > 0:
                     for i, s in enumerate(somatic_sequences[0].split(":")):
-                        if len(s) > minlen:
+                        if len(s) > args.minlen:
                             calls.append((coords, name, f"Allele1_{i}", s))
             else:
                 calls.append((coords, name, "Allele1", sequences[0]))
-        if sequences[1] and len(sequences[1]) > minlen:
-            if somatic:
+        if sequences[1] and len(sequences[1]) > args.minlen:
+            if args.somatic:
                 if len(somatic_sequences) > 1:
                     for i, s in enumerate(somatic_sequences[1].split(":")):
-                        if len(s) > minlen:
+                        if len(s) > args.minlen:
                             calls.append((coords, name, f"Allele2_{i}", s))
             else:
                 calls.append((coords, name, "Allele2", sequences[1]))
+    if args.longest_only:
+        if args.somatic:
+            sys.exit("ERROR: --longest_only is not supported with --somatic")
+        if calls:
+            calls = [max(calls, key=lambda x: len(x[3]))]
     return calls
 
 
@@ -355,6 +360,11 @@ def get_args():
         action="store_true",
     )
     parser.add_argument("--size", help="Size of markers to plot", default=3, type=int)
+    parser.add_argument(
+        "--longest_only",
+        help="Only plot the longest allele per individual",
+        action="store_true",
+    )
     return parser.parse_args()
 
 
