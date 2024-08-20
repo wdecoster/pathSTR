@@ -118,7 +118,7 @@ def plot_sequence(repeat_df, kmers, repeat, args):
     if args.hide_labels:
         fig.update_yaxes(showticklabels=False)
     else:
-        fig.update_yaxes(tickfont_size=8)
+        fig.update_yaxes(tickfont_size=args.label_size)
     fig.update_layout(legend_traceorder="reversed")
 
     # add an annotation in front of the case samples, only with --sampleinfo
@@ -232,7 +232,13 @@ def parse_input(args):
     :param repeat: coordinates of the repeat to extract, or None if all have to be extracted
     """
     # read in the VCFs
-    calls = [parse_vcf(vcf, args) for vcf in args.vcf]
+    if args.names:
+        calls = [
+            parse_vcf(vcf, args, name=name)
+            for vcf, name in zip(args.vcf, args.names.split(","))
+        ]
+    else:
+        calls = [parse_vcf(vcf, args) for vcf in args.vcf]
     # make a dataframe and join with the sample info
     df = pd.DataFrame(
         flatten(calls),
@@ -246,14 +252,15 @@ def parse_input(args):
     return df
 
 
-def parse_vcf(vcf, args):
+def parse_vcf(vcf, args, name=None):
     """
     Parse a VCF file and return a list of sequences
     :param vcf: path to the VCF file
     :param repeat: coordinates of the repeat to extract, or None if all have to be extracted
     """
     calls = []
-    name = os.path.basename(vcf).replace(".vcf.gz", "")
+    if name is None:
+        name = os.path.basename(vcf).replace(".vcf.gz", "")
     for v in VCF(vcf):
         coords = f"{v.CHROM}:{v.POS}"
         if args.repeat and coords != args.repeat:
@@ -311,7 +318,9 @@ def get_args():
     parser = ArgumentParser(
         description="Create a repeat sequence plot similar to the pathSTR <sequence> composition vizualization, but stand-alone"
     )
-    parser.add_argument("vcf", help="VCF files to analyze", nargs="+")
+    parser.add_argument(
+        "--names", help="Sample names to use, comma-separated", default=None
+    )
     parser.add_argument(
         "-k",
         "--kmer",
@@ -344,6 +353,9 @@ def get_args():
     )
     parser.add_argument("--hide-labels", help="Hide sample labels", action="store_true")
     parser.add_argument(
+        "--label_size", help="Size of sample labels", default=8, type=int
+    )
+    parser.add_argument(
         "--publication",
         help="Create a plot suitable for publication",
         action="store_true",
@@ -365,7 +377,17 @@ def get_args():
         help="Only plot the longest allele per individual",
         action="store_true",
     )
-    return parser.parse_args()
+    parser.add_argument("vcf", help="VCF files to analyze", nargs="+")
+    args = parser.parse_args()
+    if args.names:
+        if len(args.names.split(",")) != len(args.vcf):
+            sys.exit(
+                "ERROR: Number of names does not match number of VCFs\nNames: {}\nVCFs: {}".format(
+                    args.names.split(","), args.vcf
+                )
+            )
+
+    return args
 
 
 if __name__ == "__main__":
