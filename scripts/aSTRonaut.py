@@ -68,9 +68,17 @@ def plot_sequence(repeat_df, kmers, repeat, args):
     inverse_dict = {v: k for k, v in kmer_dict.items()}
     inverse_dict["rgb(128, 128, 128)"] = "other"
 
-    repeat_df = repeat_df.dropna(subset=["sequence"]).sort_values(
-        by="sequence", key=lambda x: x.str.len()
-    )
+    if args.alphabetic:
+        repeat_df["_sample"] = repeat_df["sample"]
+        repeat_df = (
+            repeat_df.dropna(subset=["sequence"])
+            .sort_values(by="_sample", ascending=False)
+            .drop(columns="_sample")
+        )
+    else:
+        repeat_df = repeat_df.dropna(subset=["sequence"]).sort_values(
+            by="sequence", key=lambda x: x.str.len()
+        )
     # draw a scatter plot showing for each sample and allele the order of the kmers in the sequence
     # replace in the sequence the kmers with their color
     repeat_df["seq_colored"] = repeat_df["sequence"]
@@ -88,7 +96,10 @@ def plot_sequence(repeat_df, kmers, repeat, args):
     repeat_df["seq_colored"] = repeat_df["seq_colored"].str.split(";")
     # add a range column to the dataframe, to enumerate the nucleotides
     repeat_df["range"] = repeat_df["seq_colored"].apply(lambda x: list(range(len(x))))
-    repeat_df["identifier"] = repeat_df["sample"] + "_" + repeat_df["allele"]
+    if args.hide_allele_label:
+        repeat_df["identifier"] = repeat_df["sample"]
+    else:
+        repeat_df["identifier"] = repeat_df["sample"] + "_" + repeat_df["allele"]
     # explode the seq_colored and range columns for plotting
     repeat_colors = repeat_df[
         ["identifier", "sequence", "seq_colored", "range"]
@@ -354,6 +365,12 @@ def get_args():
     parser.add_argument("--hide-labels", help="Hide sample labels", action="store_true")
     parser.add_argument(
         "--label_size", help="Size of sample labels", default=8, type=int
+    )
+    parser.add_argument(
+        "--alphabetic", help="Sort samples alphabetically", action="store_true"
+    )
+    parser.add_argument(
+        "--hide_allele_label", help="Hide 'Allele' from labels", action="store_true"
     )
     parser.add_argument(
         "--publication",
