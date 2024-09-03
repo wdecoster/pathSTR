@@ -152,9 +152,14 @@ def plot_sequence(repeat_df, kmers, repeat, args):
         )
         fig.update_xaxes(showline=True, linewidth=2, linecolor="black", mirror=True)
         fig.update_yaxes(showline=True, linewidth=2, linecolor="black", mirror=True)
-        fig.update_layout(
-            legend=dict(yanchor="bottom", y=0.05, xanchor="right", x=0.99)
-        )
+        if args.legend_corner == "topright":
+            fig.update_layout(
+                legend=dict(yanchor="top", y=0.95, xanchor="right", x=0.99)
+            )
+        else:
+            fig.update_layout(
+                legend=dict(yanchor="bottom", y=0.05, xanchor="right", x=0.99)
+            )
     return fig
 
 
@@ -393,6 +398,12 @@ def get_args():
         "--longest_only",
         help="Only plot the longest allele per individual",
         action="store_true",
+    )
+    parser.add_argument(
+        "--legend_corner",
+        help="Corner of the legend",
+        default="bottomright",
+        choices=["topright", "bottomright"],
     )
     parser.add_argument("vcf", help="VCF files to analyze", nargs="+")
     args = parser.parse_args()
