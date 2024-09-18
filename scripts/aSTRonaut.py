@@ -124,7 +124,7 @@ def plot_sequence(repeat_df, kmers, repeat, args):
         category_orders={"identifier": repeat_df["identifier"][::-1]},
     )
 
-    fig.update_traces(marker=dict(size=args.size))
+    fig.update_traces(marker=dict(size=args.size, symbol="square"))
     fig.update_xaxes(tickfont_size=20)
     if args.hide_labels:
         fig.update_yaxes(showticklabels=False)
@@ -154,11 +154,23 @@ def plot_sequence(repeat_df, kmers, repeat, args):
         fig.update_yaxes(showline=True, linewidth=2, linecolor="black", mirror=True)
         if args.legend_corner == "topright":
             fig.update_layout(
-                legend=dict(yanchor="top", y=0.95, xanchor="right", x=0.99)
+                legend=dict(
+                    yanchor="top",
+                    y=0.95,
+                    xanchor="right",
+                    x=0.99,
+                    itemsizing="constant",
+                )
             )
         else:
             fig.update_layout(
-                legend=dict(yanchor="bottom", y=0.05, xanchor="right", x=0.99)
+                legend=dict(
+                    yanchor="bottom",
+                    y=0.05,
+                    xanchor="right",
+                    x=0.99,
+                    itemsizing="constant",
+                )
             )
     return fig
 
