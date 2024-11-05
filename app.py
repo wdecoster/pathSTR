@@ -220,7 +220,7 @@ def main():
                                                                 "If this resource is useful to you, please cite our ",
                                                                 html.A(
                                                                     "publication",
-                                                                    href="https://www.medrxiv.org/content/10.1101/2024.03.06.24303700v1/",
+                                                                    href="https://genome.cshlp.org/content/early/2024/08/15/gr.279265.124",
                                                                     target="_blank",
                                                                 ),
                                                                 ", as well as the references to the underlying datasets: ",
@@ -238,7 +238,7 @@ def main():
                                                                 " and ",
                                                                 html.A(
                                                                     "Gustafson et al. 2024",
-                                                                    href="https://www.medrxiv.org/content/10.1101/2024.03.05.24303792v1",
+                                                                    href="https://genome.cshlp.org/content/early/2024/10/02/gr.279273.124",
                                                                     target="_blank",
                                                                 ),
                                                                 ".",
