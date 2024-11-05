@@ -1,0 +1,10 @@
+test/NA19003.vcf.gz	hg38	STRdust
+test/HG01862.vcf.gz	hg38	STRdust
+test/HG01148.vcf.gz	hg38	STRdust
+test/HG01571.vcf.gz	hg38	STRdust
+test/HG03999.vcf.gz	hg38	STRdust
+test/HG02402.vcf.gz	hg38	STRdust
+test/NA18968.vcf.gz	hg38	STRdust
+test/HG00641.vcf.gz	hg38	STRdust
+test/HG01613.vcf.gz	hg38	STRdust
+test/NA10857.vcf.gz	hg38	STRdust

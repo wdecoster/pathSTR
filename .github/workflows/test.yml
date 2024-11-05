@@ -1,0 +1,24 @@
+name: test
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: install
+      run: pip3 install -r requirements.txt
+    - name: make_db
+      run: python app.py --vcf test/genotypes_test.fofn --save_db test.pathSTRdb --sample_info data/pathSTR_samples.tsv --store_only
+    - name: run
+      run: python app.py --db test.pathSTRdb
