@@ -628,7 +628,7 @@ def main():
                                                     value=gene_options[0]["value"],
                                                     clearable=False,
                                                 ),
-                                                width=3,
+                                                width=2,
                                             ),
                                         ],
                                         align="center",
