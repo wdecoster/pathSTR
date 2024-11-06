@@ -46,6 +46,14 @@ def main():
         repeats = Repeats(df=pd.read_hdf(args.db, key="repeats"))
         detail_df = pd.read_hdf(args.db, key="details")
         db_version = pd.read_hdf(args.db, key="version").values[0]
+        # the try-except block here is very temporary, as the strchive_version is not yet in the database
+        # I will rebuild the database in the near future
+        # and hope to remove this try-except block before pushing this to production
+        # but for now, it is the best approach for testing and development
+        try:
+            strchive_version = pd.read_hdf(args.db, key="strchive_version").values[0]
+        except KeyError:
+            strchive_version = "NaN"
         logging.info("Finished reading pathSTR_db file.")
     elif args.vcf and args.sample_info:
         # read in the BED file with the STRs from STRchive
@@ -72,7 +80,8 @@ def main():
 
         detail_df = parse.create_details_table(df.copy(), repeats)
         logging.info("Finished creating details table.")
-
+        db_version = datetime.date.today().strftime("%Y-%m-%d")
+        strchive_version = repeats.strchive_version()
         if args.save_db:
             if os.path.exists(args.save_db) and not args.force:
                 logging.warning(
@@ -88,8 +97,9 @@ def main():
                 # use the date of today as the database version identifier and save it to the database as a pd.Series
                 import datetime
 
-                pd.Series(datetime.date.today().strftime("%Y-%m-%d")).to_hdf(
-                    args.save_db, key="version", mode="a"
+                pd.Series(db_version).to_hdf(args.save_db, key="version", mode="a")
+                pd.Series(strchive_version).to_hdf(
+                    args.save_db, key="strchive_version", mode="a"
                 )
                 logging.info(f"Saved parsed data to {args.save_db}.")
     else:
@@ -264,7 +274,7 @@ def main():
                                                         ),
                                                         html.P(
                                                             [
-                                                                f"This web app is developed and maintained by Wouter De Coster. The hosting and deployment is arranged by Svenn D'Hert, as well as some nice layout fixes. The current app version is v{__version__}, and the database of {num_samples} individuals was generated on {db_version}. ",
+                                                                f"This web app is developed and maintained by Wouter De Coster. The hosting and deployment is arranged by Svenn D'Hert, as well as some nice layout fixes. The current app version is v{__version__}, and the database of {num_samples} individuals was generated on {db_version} based on STRchive {strchive_version}. ",
                                                                 "The source code is available on ",
                                                                 html.A(
                                                                     "GitHub",
