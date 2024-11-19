@@ -256,8 +256,8 @@ def prune_counts(kmers):
 def parse_input(args):
     """
     Parse the VCF files and return a dataframe, containing the coordinates, sample name, allele and repeat sequence
-    :param vcf_list: list of VCF files to parse
-    :param repeat: coordinates of the repeat to extract, or None if all have to be extracted
+    :param args.vcf: list of VCF files to parse
+    :param args.repeat: coordinates of the repeat to extract, or None if all have to be extracted
     """
     # read in the VCFs
     if args.names:
@@ -284,13 +284,14 @@ def parse_vcf(vcf, args, name=None):
     """
     Parse a VCF file and return a list of sequences
     :param vcf: path to the VCF file
-    :param repeat: coordinates of the repeat to extract, or None if all have to be extracted
+    :param name: name of the sample
     """
     calls = []
     if name is None:
         name = os.path.basename(vcf).replace(".vcf.gz", "")
     for v in VCF(vcf):
         coords = f"{v.CHROM}:{v.POS}"
+        # args.repeat, if set, specifies coordinates of a repeat to plot
         if args.repeat and coords != args.repeat:
             continue
         sequences = parse_alts(v.ALT, v.genotypes[0])
@@ -319,6 +320,7 @@ def parse_vcf(vcf, args, name=None):
     if args.longest_only:
         if args.somatic:
             sys.exit("ERROR: --longest_only is not supported with --somatic")
+        # if two alleles pass the minimal length cutoff, only keep the longest one
         if calls:
             calls = [max(calls, key=lambda x: len(x[3]))]
     return calls
