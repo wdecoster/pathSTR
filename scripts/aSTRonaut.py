@@ -28,8 +28,7 @@ def main():
             sys.exit(1)
         df = df.join(sampleinfo, how="left")
         # add a 'case' column which is 1 if the sample is a case and 0 otherwise
-        df["case"] = 0
-        df.loc[df["group"] == "case", "case"] = 1
+        df["case"] = df["group"].apply(lambda x: 1 if x == "case" else 0)
     else:
         # if no sample info is provided, all samples are considered controls
         # and no annotation is added to the plot
@@ -259,24 +258,49 @@ def parse_input(args):
     :param vcf_list: list of VCF files to parse
     :param repeat: coordinates of the repeat to extract, or None if all have to be extracted
     """
-    # read in the VCFs
-    if args.names:
-        calls = [
-            parse_vcf(vcf, args, name=name)
-            for vcf, name in zip(args.vcf, args.names.split(","))
-        ]
+    if args.table:
+        df = pd.read_table(args.table)
+        if not "name" in df.columns:
+            sys.exit("ERROR: No 'name' column found in table")
+        if not "sequence" in df.columns:
+            sys.exit("ERROR: No 'sequence' column found in table")
+        if "group" in df.columns:
+            if "case" not in df["group"].unique():
+                sys.exit(
+                    "ERROR: 'case' is not a value in the 'group' column of the table!\n"
+                )
+            df["case"] = df["group"].apply(lambda x: 1 if x == "case" else 0)
+        else:
+            # if no sample info is provided, all samples are considered controls
+            # and no annotation is added to the plot
+            df["case"] = 0
+        df["length"] = df["sequence"].apply(len)
+        df = (
+            df.loc[df["length"] > args.minlen, ["name", "sequence", "case"]]
+            .rename(columns={"name": "sample"})
+            .assign(coords="", allele="Allele1")
+            .set_index("sample", drop=False)
+        )
+
     else:
-        calls = [parse_vcf(vcf, args) for vcf in args.vcf]
-    # make a dataframe and join with the sample info
-    df = pd.DataFrame(
-        flatten(calls),
-        columns=[
-            "coords",
-            "sample",
-            "allele",
-            "sequence",
-        ],
-    ).set_index("sample", drop=False)
+        # read in the VCFs
+        if args.names:
+            calls = [
+                parse_vcf(vcf, args, name=name)
+                for vcf, name in zip(args.vcf, args.names.split(","))
+            ]
+        else:
+            calls = [parse_vcf(vcf, args) for vcf in args.vcf]
+        # make a dataframe and join with the sample info
+        df = pd.DataFrame(
+            flatten(calls),
+            columns=[
+                "coords",
+                "sample",
+                "allele",
+                "sequence",
+            ],
+        ).set_index("sample", drop=False)
     return df
 
 
@@ -417,7 +441,12 @@ def get_args():
         default="bottomright",
         choices=["topright", "bottomright"],
     )
-    parser.add_argument("vcf", help="VCF files to analyze", nargs="+")
+    parser.add_argument(
+        "-t",
+        "--table",
+        help="Use a tsv (with name, sequence and group columns) as input",
+    )
+    parser.add_argument("vcf", help="VCF files to analyze", nargs="*")
     args = parser.parse_args()
     if args.names:
         if len(args.names.split(",")) != len(args.vcf):
@@ -426,7 +455,10 @@ def get_args():
                     args.names.split(","), args.vcf
                 )
             )
-
+    if args.table and args.vcf:
+        sys.exit("ERROR: Please provide either VCFs or a table, not both")
+    if not args.table and not args.vcf:
+        sys.exit("ERROR: Please provide either VCFs or a table")
     return args
 
 
