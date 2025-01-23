@@ -137,10 +137,10 @@ def plot_sequence(repeat_df, kmers, repeat, args):
             fig.add_annotation(
                 x=0,
                 y=row["identifier"],
-                text=">>>",
+                text="<b>>>></b>",
                 showarrow=False,
                 xshift=-20,
-                font=dict(size=8),
+                font=dict(size=10, color="black"),
             )
     if args.publication:
         fig.update_layout(
@@ -151,26 +151,27 @@ def plot_sequence(repeat_df, kmers, repeat, args):
         )
         fig.update_xaxes(showline=True, linewidth=2, linecolor="black", mirror=True)
         fig.update_yaxes(showline=True, linewidth=2, linecolor="black", mirror=True)
-        if args.legend_corner == "topright":
-            fig.update_layout(
-                legend=dict(
-                    yanchor="top",
-                    y=0.95,
-                    xanchor="right",
-                    x=0.99,
-                    itemsizing="constant",
-                )
+    fig.update_layout(height=args.height)
+    if args.legend_corner == "topright":
+        fig.update_layout(
+            legend=dict(
+                yanchor="top",
+                y=0.95,
+                xanchor="right",
+                x=0.99,
+                itemsizing="constant",
             )
-        else:
-            fig.update_layout(
-                legend=dict(
-                    yanchor="bottom",
-                    y=0.05,
-                    xanchor="right",
-                    x=0.99,
-                    itemsizing="constant",
-                )
+        )
+    else:
+        fig.update_layout(
+            legend=dict(
+                yanchor="bottom",
+                y=0.05,
+                xanchor="right",
+                x=0.95,
+                itemsizing="constant",
             )
+        )
     return fig
 
 
@@ -330,6 +331,11 @@ def parse_vcf(vcf, args, name=None):
                     for i, s in enumerate(somatic_sequences[0].split(":")):
                         if len(s) > args.minlen:
                             calls.append((coords, name, f"Allele1_{i}", s))
+                # if there are outliers, add them as well, which is done only once as those are not phased
+                if v.INFO.get("OUTLIERS") is not None:
+                    for i, s in enumerate(v.INFO.get("OUTLIERS").split(",")):
+                        if len(s) > args.minlen:
+                            calls.append((coords, name, f"Outlier_{i}", s))
             else:
                 calls.append((coords, name, "Allele1", sequences[0]))
         if sequences[1] and len(sequences[1]) > args.minlen:
@@ -441,6 +447,7 @@ def get_args():
         default="bottomright",
         choices=["topright", "bottomright"],
     )
+    parser.add_argument("--height", help="Height of the plot", default=800, type=int)
     parser.add_argument(
         "-t",
         "--table",
