@@ -726,6 +726,29 @@ def main():
                                                                         ),
                                                                         width=3,
                                                                     ),
+                                                                    dbc.Row(
+                                                                        [
+                                                                            dbc.Col(
+                                                                                html.Label(
+                                                                                    "Filter by superpopulation:"
+                                                                                ),
+                                                                                width=3,
+                                                                            ),
+                                                                            dbc.Col(
+                                                                                dcc.Dropdown(
+                                                                                    id="kmer-options-sequence-superpopulation",
+                                                                                    options=[
+                                                                                        {"label": superpop, "value": superpop}
+                                                                                        for superpop in df["Superpopulation"].unique()
+                                                                                    ],
+                                                                                    multi=True,
+                                                                                    clearable=True,
+                                                                                ),
+                                                                                width=2,
+                                                                            ),
+                                                                        ],
+                                                                        align="center",
+                                                                    ),
                                                                     dbc.Col(
                                                                         dcc.Dropdown(
                                                                             id="kmer-options-sequence-pathlen",
@@ -1350,6 +1373,7 @@ def main():
             Input("kmer-options-sequence-pathlen", "value"),
             State("publication-ready", "value"),
             Input("dropdown-dataset", "value"),
+            Input("kmer-options-sequence-superpopulation", "value"),
         ],
         suppress_callback_exceptions=True,
     )
@@ -1363,6 +1387,7 @@ def main():
         show_pathogenic_length,
         publication_ready,
         dataset,
+        superpopulation_filter,
     ):
         """
         Create a kmer composition plot
@@ -1373,6 +1398,7 @@ def main():
         :param sequence_direction: direction to show the sequence kmer composition in
         :param publication_ready: whether to show a publication-ready plot
         :param dataset: dataset to show the kmer composition for
+        :param superpopulation_filter: superpopulation to filter the data by
         """
         if kmer_mode == "sequence":
             if len(stored_df) == 0:
@@ -1386,7 +1412,9 @@ def main():
                     ]
                 ).fillna(0.0)
             filtered_df = df[(df["gene"] == selected_gene) & (df["dataset"] == dataset)]
-            # pathogenic lenght is in units of the motif length, so has to be converted to basepairs for this plot
+            if superpopulation_filter:
+                filtered_df = filtered_df[filtered_df["Superpopulation"].isin(superpopulation_filter)]
+            # pathogenic length is in units of the motif length, so has to be converted to basepairs for this plot
             pathogenic_length = (
                 repeats.pathogenic_min_length(selected_gene, dataset)
                 * repeats.motif_length(selected_gene, dataset)
