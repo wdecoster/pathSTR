@@ -456,6 +456,8 @@ def get_args():
         help="Use a tsv (with name, sequence and group columns) as input",
     )
     parser.add_argument("vcf", help="VCF files to analyze", nargs="*")
+    # add a version argument
+    parser.add_argument("--version", action="version", version="aSTRonaut 1.0")
     args = parser.parse_args()
     if args.names:
         if len(args.names.split(",")) != len(args.vcf):
