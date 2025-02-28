@@ -28,8 +28,7 @@ def main():
             sys.exit(1)
         df = df.join(sampleinfo, how="left")
         # add a 'case' column which is 1 if the sample is a case and 0 otherwise
-        df["case"] = 0
-        df.loc[df["group"] == "case", "case"] = 1
+        df["case"] = df["group"].apply(lambda x: 1 if x == "case" else 0)
     else:
         # if no sample info is provided, all samples are considered controls
         # and no annotation is added to the plot
@@ -138,10 +137,10 @@ def plot_sequence(repeat_df, kmers, repeat, args):
             fig.add_annotation(
                 x=0,
                 y=row["identifier"],
-                text=">>>",
+                text="<b>>>></b>",
                 showarrow=False,
                 xshift=-20,
-                font=dict(size=8),
+                font=dict(size=10, color="black"),
             )
     if args.publication:
         fig.update_layout(
@@ -152,26 +151,27 @@ def plot_sequence(repeat_df, kmers, repeat, args):
         )
         fig.update_xaxes(showline=True, linewidth=2, linecolor="black", mirror=True)
         fig.update_yaxes(showline=True, linewidth=2, linecolor="black", mirror=True)
-        if args.legend_corner == "topright":
-            fig.update_layout(
-                legend=dict(
-                    yanchor="top",
-                    y=0.95,
-                    xanchor="right",
-                    x=0.99,
-                    itemsizing="constant",
-                )
+    fig.update_layout(height=args.height)
+    if args.legend_corner == "topright":
+        fig.update_layout(
+            legend=dict(
+                yanchor="top",
+                y=0.95,
+                xanchor="right",
+                x=0.99,
+                itemsizing="constant",
             )
-        else:
-            fig.update_layout(
-                legend=dict(
-                    yanchor="bottom",
-                    y=0.05,
-                    xanchor="right",
-                    x=0.99,
-                    itemsizing="constant",
-                )
+        )
+    else:
+        fig.update_layout(
+            legend=dict(
+                yanchor="bottom",
+                y=0.05,
+                xanchor="right",
+                x=0.95,
+                itemsizing="constant",
             )
+        )
     return fig
 
 
@@ -259,24 +259,49 @@ def parse_input(args):
     :param args.vcf: list of VCF files to parse
     :param args.repeat: coordinates of the repeat to extract, or None if all have to be extracted
     """
-    # read in the VCFs
-    if args.names:
-        calls = [
-            parse_vcf(vcf, args, name=name)
-            for vcf, name in zip(args.vcf, args.names.split(","))
-        ]
+    if args.table:
+        df = pd.read_table(args.table)
+        if not "name" in df.columns:
+            sys.exit("ERROR: No 'name' column found in table")
+        if not "sequence" in df.columns:
+            sys.exit("ERROR: No 'sequence' column found in table")
+        if "group" in df.columns:
+            if "case" not in df["group"].unique():
+                sys.exit(
+                    "ERROR: 'case' is not a value in the 'group' column of the table!\n"
+                )
+            df["case"] = df["group"].apply(lambda x: 1 if x == "case" else 0)
+        else:
+            # if no sample info is provided, all samples are considered controls
+            # and no annotation is added to the plot
+            df["case"] = 0
+        df["length"] = df["sequence"].apply(len)
+        df = (
+            df.loc[df["length"] > args.minlen, ["name", "sequence", "case"]]
+            .rename(columns={"name": "sample"})
+            .assign(coords="", allele="Allele1")
+            .set_index("sample", drop=False)
+        )
+
     else:
-        calls = [parse_vcf(vcf, args) for vcf in args.vcf]
-    # make a dataframe and join with the sample info
-    df = pd.DataFrame(
-        flatten(calls),
-        columns=[
-            "coords",
-            "sample",
-            "allele",
-            "sequence",
-        ],
-    ).set_index("sample", drop=False)
+        # read in the VCFs
+        if args.names:
+            calls = [
+                parse_vcf(vcf, args, name=name)
+                for vcf, name in zip(args.vcf, args.names.split(","))
+            ]
+        else:
+            calls = [parse_vcf(vcf, args) for vcf in args.vcf]
+        # make a dataframe and join with the sample info
+        df = pd.DataFrame(
+            flatten(calls),
+            columns=[
+                "coords",
+                "sample",
+                "allele",
+                "sequence",
+            ],
+        ).set_index("sample", drop=False)
     return df
 
 
@@ -307,6 +332,11 @@ def parse_vcf(vcf, args, name=None):
                     for i, s in enumerate(somatic_sequences[0].split(":")):
                         if len(s) > args.minlen:
                             calls.append((coords, name, f"Allele1_{i}", s))
+                # if there are outliers, add them as well, which is done only once as those are not phased
+                if v.INFO.get("OUTLIERS") is not None:
+                    for i, s in enumerate(v.INFO.get("OUTLIERS").split(",")):
+                        if len(s) > args.minlen:
+                            calls.append((coords, name, f"Outlier_{i}", s))
             else:
                 calls.append((coords, name, "Allele1", sequences[0]))
         if sequences[1] and len(sequences[1]) > args.minlen:
@@ -419,7 +449,13 @@ def get_args():
         default="bottomright",
         choices=["topright", "bottomright"],
     )
-    parser.add_argument("vcf", help="VCF files to analyze", nargs="+")
+    parser.add_argument("--height", help="Height of the plot", default=800, type=int)
+    parser.add_argument(
+        "-t",
+        "--table",
+        help="Use a tsv (with name, sequence and group columns) as input",
+    )
+    parser.add_argument("vcf", help="VCF files to analyze", nargs="*")
     args = parser.parse_args()
     if args.names:
         if len(args.names.split(",")) != len(args.vcf):
@@ -428,7 +464,10 @@ def get_args():
                     args.names.split(","), args.vcf
                 )
             )
-
+    if args.table and args.vcf:
+        sys.exit("ERROR: Please provide either VCFs or a table, not both")
+    if not args.table and not args.vcf:
+        sys.exit("ERROR: Please provide either VCFs or a table")
     return args
 
 

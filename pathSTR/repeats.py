@@ -83,6 +83,14 @@ class Repeats(object):
         """
         return sorted([len(m) for m in motifs], reverse=True)[0]
 
+    def strchive_version(self):
+        """get the latest release from https://github.com/dashnowlab/STRchive"""
+        import requests
+
+        url = "https://api.github.com/repos/dashnowlab/STRchive/releases/latest"
+        response = requests.get(url)
+        return response.json()["tag_name"]
+
     def query(self, dataset, gene, column):
         """
         Generic method to query the dataframe based on a dataset, gene and column (or list of columns)
