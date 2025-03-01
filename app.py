@@ -736,29 +736,6 @@ def main():
                                                                         ),
                                                                         width=3,
                                                                     ),
-                                                                    dbc.Row(
-                                                                        [
-                                                                            dbc.Col(
-                                                                                html.Label(
-                                                                                    "Filter by superpopulation:"
-                                                                                ),
-                                                                                width=3,
-                                                                            ),
-                                                                            dbc.Col(
-                                                                                dcc.Dropdown(
-                                                                                    id="kmer-options-sequence-superpopulation",
-                                                                                    options=[
-                                                                                        {"label": superpop, "value": superpop}
-                                                                                        for superpop in df["Superpopulation"].unique()
-                                                                                    ],
-                                                                                    multi=True,
-                                                                                    clearable=True,
-                                                                                ),
-                                                                                width=2,
-                                                                            ),
-                                                                        ],
-                                                                        align="center",
-                                                                    ),
                                                                     dbc.Col(
                                                                         dcc.Dropdown(
                                                                             id="kmer-options-sequence-pathlen",
@@ -786,13 +763,8 @@ def main():
                                                                         dcc.Dropdown(
                                                                             id="kmer-options-sequence-superpopulation",
                                                                             options=[
-                                                                                {
-                                                                                    "label": superpop,
-                                                                                    "value": superpop,
-                                                                                }
-                                                                                for superpop in df[
-                                                                                    "Superpopulation"
-                                                                                ].unique()
+                                                                                {"label": superpop, "value": superpop}
+                                                                                for superpop in df["Superpopulation"].unique()
                                                                             ],
                                                                             multi=True,
                                                                             clearable=True,
