@@ -32,7 +32,10 @@ def main():
     else:
         # if no sample info is provided, all samples are considered controls
         # and no annotation is added to the plot
-        df["case"] = 0
+        # However, the 'case' column could already be present in the dataframe in the case of a table input
+        # then, it should not be overwritten
+        if "case" not in df.columns:
+            df["case"] = 0
     with open(args.out, "w") as out:
         for repeat in df["coords"].unique():
             repeat_df = df[df["coords"] == repeat]
@@ -276,7 +279,7 @@ def parse_input(args):
             # and no annotation is added to the plot
             df["case"] = 0
         df["length"] = df["sequence"].apply(len)
-        df = (
+        return (
             df.loc[df["length"] > args.minlen, ["name", "sequence", "case"]]
             .rename(columns={"name": "sample"})
             .assign(coords="", allele="Allele1")
@@ -293,7 +296,7 @@ def parse_input(args):
         else:
             calls = [parse_vcf(vcf, args) for vcf in args.vcf]
         # make a dataframe and join with the sample info
-        df = pd.DataFrame(
+        return pd.DataFrame(
             flatten(calls),
             columns=[
                 "coords",
@@ -302,7 +305,6 @@ def parse_input(args):
                 "sequence",
             ],
         ).set_index("sample", drop=False)
-    return df
 
 
 def parse_vcf(vcf, args, name=None):
