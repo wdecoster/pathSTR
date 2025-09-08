@@ -2,17 +2,14 @@
 # taking VCF files as input
 
 from argparse import ArgumentParser
-import plotly.express as px
-import pandas as pd
-from collections import Counter
-from cyvcf2 import VCF
-from itertools import chain
 import os
 import sys
+from itertools import chain
 
 
 def main():
     args = get_args()
+    import pandas as pd
     df = parse_input(args)
     if args.sampleinfo:
         sampleinfo = (
@@ -60,6 +57,8 @@ def plot_sequence(repeat_df, kmers, repeat, args):
     :param kmers: list of kmers to plot
     :param repeat: coordinates of the repeat
     """
+    import plotly.express as px
+
     if len(kmers) > 10:
         colors = [hex_to_rgb(c) for c in px.colors.qualitative.Light24]
         if len(kmers) > len(colors):
@@ -191,6 +190,8 @@ def select_kmers(repeat_df, motif_length, number=10):
     :param motif_length: length of the kmers to count
     :param number: number of kmers to plot
     """
+    import pandas as pd
+
     kmers_extracted = []
     for sample, allele, seq in repeat_df[["sample", "allele", "sequence"]].itertuples(
         index=False, name=None
@@ -224,6 +225,8 @@ def count_kmers(seq, k):
     :param seq: sequence to count kmers in
     :param k: kmer length
     """
+    from collections import Counter
+
     kmers = Counter()
     for i in range(len(seq) - k + 1):
         kmers[seq[i : i + k]] += 1
@@ -262,6 +265,8 @@ def parse_input(args):
     :param args.vcf: list of VCF files to parse
     :param args.repeat: coordinates of the repeat to extract, or None if all have to be extracted
     """
+    import pandas as pd
+
     if args.table:
         df = pd.read_table(args.table)
         if not "name" in df.columns:
@@ -313,6 +318,8 @@ def parse_vcf(vcf, args, name=None):
     :param vcf: path to the VCF file
     :param name: name of the sample
     """
+    from cyvcf2 import VCF
+
     calls = []
     if name is None:
         name = os.path.basename(vcf).replace(".vcf.gz", "")
