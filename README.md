@@ -119,13 +119,15 @@ python app.py --db 1000G.pathSTRdb
 
 ### Preparing a list for samples for the Gustafson source
 
-Listing all files from the AWS bucket, for both hg38 and chm13/t2t bams from the standard minimap2 pipeline
+Listing all files from the AWS bucket, separately for hg38 and chm13/t2t:
 
 ```bash
-aws s3 ls 1000g-ont --no-sign-request --recursive | grep -i minimap | grep bam$  | cut -f4 -d' ' > data/list-miller-20240619.txt
+cd /path/to/repo
+aws s3 ls 1000g-ont/PROCESSED_DATA/ALIGNED_TO_HG38/MINIMAP2_ALIGNED_BAMS/ --no-sign-request --recursive | grep .bam$  | cut -f4 -d' ' > data/list-miller-2025103_hg38.txt
+aws s3 ls 1000g-ont/PROCESSED_DATA/ALIGNED_TO_CHM13/MINIMAP2_ALIGNED_BAMS/ --no-sign-request --recursive | grep .bam$  | cut -f4 -d' ' > data/list-miller-2025103_chm13.txt
 ```
 
---> results in paths to bam files, with duplicates, and for both chm13 and hg38. This is further handled by the snakemake pipeline.
+--> results in paths to bam files, possibly with duplicates
 
 ### Adapting LongTR to genotype remote cram files
 
