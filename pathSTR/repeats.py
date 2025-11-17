@@ -20,8 +20,8 @@ class Repeats(object):
         But the shortest or random choice also was a bad thing, e.g. for FXN.
         """
         urls = {
-            "hg38": "https://raw.githubusercontent.com/hdashnow/STRchive/main/data/hg38.STRchive-disease-loci.TRGT.bed",
-            "t2t": "https://raw.githubusercontent.com/hdashnow/STRchive/main/data/T2T-chm13.STRchive-disease-loci.TRGT.bed",
+            "hg38": "https://raw.githubusercontent.com/dashnowlab/STRchive/refs/heads/main/data/catalogs/STRchive-disease-loci.hg38.TRGT.bed",
+            "t2t": "https://raw.githubusercontent.com/dashnowlab/STRchive/refs/heads/main/data/catalogs/STRchive-disease-loci.T2T-chm13.TRGT.bed",
         }
         bed = pd.read_csv(
             urls[build], sep="\t", header=None, names=["chrom", "start", "end", "info"]
@@ -35,10 +35,8 @@ class Repeats(object):
         )
         # download the csv file from STRchive, and join it with the bed file to get the pathogenic_min length column
         bed = bed.join(
-            pd.read_csv(
-                "https://raw.githubusercontent.com/hdashnow/STRchive/main/data/STRchive-database.csv",
-                usecols=["id", "pathogenic_min"],
-            ).set_index("id"),
+            pd.read_json(
+                "https://raw.githubusercontent.com/dashnowlab/STRchive/refs/heads/main/data/STRchive-loci.json").set_index("id")[["pathogenic_min"]],
             on="id",
         )
 

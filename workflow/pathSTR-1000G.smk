@@ -3,52 +3,42 @@ import pandas as pd
 
 
 def parse_motifs(info):
-    """Return the length of the longest motif"""
-    motif_string = [i for i in info.split(";") if i.startswith("MOTIFS=")][0]
-    motifs = motif_string.split("=")[1].split(",")
-    return max([len(m) for m in motifs])
-
+    """Return the motif of the repeat"""
+    return [i.split('=')[1] for i in info.split(";") if i.startswith("MOTIFS=")][0] 
 
 # setting up paths
-work_dir = "/home/wdecoster/pathSTR-1000G/"
-strdust = "/home/wdecoster/repositories/STRdust/target/release/STRdust"
-longTR = "/home/wdecoster/repositories/LongTR/LongTR"  # hacked version of LongTR to enable remote cram
+work_dir = "/home/AD/wdecoster/pathSTR/"
+strdust = "/home/AD/wdecoster/repositories/STRdust/target/release/STRdust"
 
 ## setting up loci to target from STRchive
 strchive = pd.read_csv(
-    "https://raw.githubusercontent.com/hdashnow/STRchive/main/data/hg38.STRchive-disease-loci.TRGT.bed",
+    "https://github.com/dashnowlab/STRchive/raw/main/data/catalogs/STRchive-disease-loci.hg38.TRGT.bed",
     sep="\t",
     header=None,
     names=["chrom", "start", "end", "info"],
 )
 targets_strdust = os.path.join(work_dir, "data/STRchive_STRdust.bed")
 strchive.to_csv(targets_strdust, sep="\t", index=False, header=False)
-strchive["motif_length"] = strchive["info"].apply(lambda x: parse_motifs(x))
-# get the number of copies of the motif in the reference genome
-strchive["num_copies"] = (strchive["end"] - strchive["start"]) / strchive[
-    "motif_length"
-]
+strchive["motif"] = strchive["info"].apply(lambda x: parse_motifs(x))
+
 targets_longtr = os.path.join(work_dir, "data/STRchive_LongTR.bed")
-strchive[["chrom", "start", "end", "motif_length", "num_copies"]].to_csv(
+strchive[["chrom", "start", "end", "motif"]].to_csv(
     targets_longtr,
     sep="\t",
     index=False,
     header=False,
 )
 strchive_t2t = pd.read_csv(
-    "https://raw.githubusercontent.com/hdashnow/STRchive/main/data/T2T-chm13.STRchive-disease-loci.TRGT.bed",
+    "https://github.com/dashnowlab/STRchive/raw/main/data/catalogs/STRchive-disease-loci.T2T-chm13.TRGT.bed",
     sep="\t",
     header=None,
     names=["chrom", "start", "end", "info"],
 )
 targets_strdust_t2t = os.path.join(work_dir, "data/STRchive_STRdust_t2t.bed")
 strchive_t2t.to_csv(targets_strdust_t2t, sep="\t", index=False, header=False)
-strchive_t2t["motif_length"] = strchive_t2t["info"].apply(lambda x: parse_motifs(x))
-strchive_t2t["num_copies"] = (
-    strchive_t2t["end"] - strchive_t2t["start"]
-) / strchive_t2t["motif_length"]
+strchive_t2t["motif"] = strchive_t2t["info"].apply(lambda x: parse_motifs(x))
 targets_longtr_t2t = os.path.join(work_dir, "data/STRchive_LongTR_t2t.bed")
-strchive_t2t[["chrom", "start", "end", "motif_length", "num_copies"]].to_csv(
+strchive_t2t[["chrom", "start", "end", "motif"]].to_csv(
     targets_longtr_t2t,
     sep="\t",
     index=False,
@@ -61,63 +51,58 @@ if "extra" not in config:
 
 # setting up sample dataframes
 
-# VIENNA
-samples_vienna = pd.read_table(
-    os.path.join(work_dir, "data/all_cram_names_ftp.txt"),
-    header=None,
-    names=["filename"],
-)
-samples_vienna_ftp = (
+def vienna():
+    df = pd.read_table(
+        os.path.join(work_dir, "data/all_cram_names_ftp.txt"),
+        header=None,
+        names=["filename"],
+    )
+    vienna_ftp = (
     "https://ftp.1000genomes.ebi.ac.uk/vol1/ftp/data_collections/1KG_ONT_VIENNA/"
 )
-samples_vienna["sample"] = samples_vienna["filename"].str.replace(
-    ".hg38.cram", "", regex=False
-)
-samples_vienna["hg38_path"] = (
-    samples_vienna_ftp + "hg38/" + samples_vienna["filename"].astype(str)
-)
-samples_vienna["t2t_path"] = (
-    samples_vienna_ftp
-    + "t2t/"
-    + samples_vienna["filename"].str.replace(".hg38.", ".t2t.", regex=False).astype(str)
-)
-samples_vienna["source"] = "Noyvert/Schloissnig"
+    df["sample"] = df["filename"].str.replace(".hg38.cram", "", regex=False)
+    
+    df["hg38_path"] = (vienna_ftp + "hg38/" + df["filename"].astype(str))
+    df["t2t_path"] = (vienna_ftp + "t2t/" + df["filename"].str.replace(".hg38.", ".t2t.", regex=False).astype(str))
+    df["source"] = "Noyvert/Schloissnig"
+    return df.drop(columns="filename")
+
+def gustafson(build):
+    df = pd.read_table(
+        os.path.join(
+            work_dir, f"data/list-miller-2025103_{build}.txt"
+        ),
+        header=None,
+        names=["filename"],
+    )
+    df["sample"] = (
+        df["filename"]
+        .apply(lambda x: os.path.basename(x))
+        .str.split("-")
+        .str[0]
+        .str.split("_")
+        .str[0]
+        .str.replace("GM", "NA", regex=False)
+    )
+    buildname = {"hg38": "hg38", "chm13": "t2t"}[build]
+    df[f"{buildname}_path"] = (
+        "https://s3.amazonaws.com/1000g-ont/" + df["filename"].astype(str)
+    )
+    df["source"] = "Gustafson"
+    return df.drop(columns="filename")
 
 # GUSTAFSON
-samples_miller_all = pd.read_table(
-    os.path.join(work_dir, "data/list-miller-20240619.txt"),
-    header=None,
-    names=["filename"],
+# note that this function contains hardcoded paths to a list generated using aws s3 ls, which will have to be updated when updating the database
+samples_vienna = vienna()
+samples_gustafson_hg38 = gustafson("hg38")
+samples_gustafson_t2t = gustafson("chm13")
+# both tables from gustafson have sample, hg38_path/t2t_path and source columns, so can be merged directly
+samples_gustafson = pd.merge(
+    samples_gustafson_hg38,
+    samples_gustafson_t2t,
+    on=["sample", "source"],
+    how="outer",
 )
-
-
-# This line is awful.
-samples_miller_all["sample"] = (
-    samples_miller_all["filename"]
-    .apply(lambda x: os.path.basename(x))
-    .str.split("-")
-    .str[0]
-    .str.split("_")
-    .str[0]
-    .str.replace("GM", "NA", regex=False)
-)
-
-# extract the build from the filename, drop those for which that is not specified
-samples_miller_all[
-    "filename"
-] = "https://s3.amazonaws.com/1000g-ont/" + samples_miller_all["filename"].astype(str)
-samples_miller_all["build"] = samples_miller_all["filename"].apply(
-    lambda x: "hg38_path" if "hg38" in x else "t2t_path" if "chm13" in x else None
-)
-samples_miller_all = samples_miller_all.dropna(subset=["build"])
-
-# pivot the dataframe to have one row per sample, with the hg38 and t2t paths in separate columns
-samples_miller = samples_miller_all.pivot(
-    index="sample", columns="build", values="filename"
-).reset_index()
-
-samples_miller["source"] = "Gustafson"
-
 
 # SAMPLEINFO
 sample_info = pd.read_table(
@@ -128,12 +113,12 @@ sample_info = pd.read_table(
 # Samples with missing Sex or Superpopulation code are dropped
 # duplicates are dropped, keeping the last one as samples from Miller are generally better covered
 samples = (
-    pd.concat([samples_vienna, samples_miller])
+    pd.concat([samples_vienna, samples_gustafson])
     .drop_duplicates(subset="sample", keep="last")
     .set_index("sample")
     .join(sample_info)
     .dropna(subset=["Sex", "Superpopulation code"])
-    .drop(columns="filename")
+    
 )
 
 print("\nSources and samples in study:")
@@ -148,8 +133,8 @@ samples.to_csv(
 
 def get_ref(wildcards):
     return {
-        "hg38": "/home/wdecoster/database/1KG_ONT_VIENNA_hg38.fa",
-        "t2t": "/home/wdecoster/database/1KG_ONT_VIENNA_t2t.fa",
+        "hg38": "/home/AD/wdecoster/database/1KG_ONT_VIENNA_hg38.fa",
+        "t2t": "/home/AD/wdecoster/database/1KG_ONT_VIENNA_t2t.fa",
     }[wildcards.build]
 
 
@@ -253,7 +238,7 @@ rule strdust_unphased:
         binary=strdust,
         haploid_chroms=get_haploid_chroms,
     conda:
-        "/home/wdecoster/p200/1000G/envs/samtools.yml"
+        "/home/AD/wdecoster/anaconda3/envs/samtools"
     shell:
         """RUST_LOG=debug {params.binary} \
         -R {params.targets} \
@@ -277,10 +262,10 @@ rule longTR:
     params:
         cram=get_path,
         ref=get_ref,
-        sample="{wildcards.sample}",
+        sample=lambda wildcards: {wildcards.sample},
         sex=get_sex,
         targets=get_targets_longtr,
-        binary=longTR,
+        binary="~/anaconda3/envs/longtr/bin/LongTR"
     shell:
         """{params.binary} \
         --bams {params.cram} \
@@ -306,7 +291,7 @@ rule strdust_unphased_random_repeats:
         targets="/home/wdecoster/pathSTR-1000G/data/random-simple-repeats.bed",
         binary=strdust,
     conda:
-        "/home/wdecoster/p200/1000G/envs/samtools.yml"
+        "/home/AD/wdecoster/anaconda3/envs/samtools"
     shell:
         """RUST_LOG=debug {params.binary} \
         -R {params.targets} \
@@ -334,7 +319,7 @@ rule strdust_unphased_extra_repeats:
         targets=config["extra"],
         binary=strdust,
     conda:
-        "/home/wdecoster/p200/1000G/envs/samtools.yml"
+        "/home/AD/wdecoster/anaconda3/envs/samtools"
     shell:
         """RUST_LOG=debug {params.binary} \
         -R {params.targets} \
@@ -357,7 +342,7 @@ rule cramino:
     params:
         cram=get_path,
         ref=get_ref,
-        binary="/home/wdecoster/repositories/cramino/target/release/cramino",
+        binary="/home/AD/wdecoster/repositories/cramino/target/release/cramino",
     shell:
         "{params.binary} --karyotype --reference {params.ref} {params.cram} > {output} 2> {log}"
 
@@ -373,11 +358,11 @@ rule cramino_gather:
     log:
         "logs/cramino_gather.log",
     conda:
-        "/home/wdecoster/pathSTR-1000G/envs/pandas_plotly.yml"
+        os.path.join(work_dir, "envs/pandas_plotly.yml")
     params:
         script=os.path.join(work_dir, "scripts/cramino_gather.py"),
     shell:
-        "/home/wdecoster/miniconda3/envs/pandas_plotly/bin/python {params.script} -i {input} -o {output} 2> {log}"
+        "python {params.script} -i {input} -o {output} 2> {log}"
 
 
 rule plot_length_vs_yield:
@@ -388,12 +373,12 @@ rule plot_length_vs_yield:
     log:
         "logs/yield_vs_length.log",
     conda:
-        "/home/wdecoster/pathSTR-1000G/envs/pandas_plotly.yml"
+        os.path.join(work_dir, "envs/pandas_plotly.yml")
     params:
         script=os.path.join(work_dir, "scripts/yield_vs_length.py"),
         sample_info=os.path.join(work_dir, "data/pathSTR_samples.tsv"),
     shell:
-        "/home/wdecoster/miniconda3/envs/pandas_plotly/bin/python {params.script} -i {input} -s {params.sample_info} -o {output} 2> {log}"
+        "python {params.script} -i {input} -s {params.sample_info} -o {output} 2> {log}"
 
 
 # this rule uses, regardless of the build, the hg38 good samples
@@ -412,11 +397,11 @@ rule copy_good_samples:
     log:
         "logs/copy_good_samples_{genotyper}_{build}.log",
     conda:
-        "/home/wdecoster/pathSTR-1000G/envs/pandas_plotly.yml"
+        os.path.join(work_dir, "envs/pandas_plotly.yml")
     params:
         script=os.path.join(work_dir, "scripts/copy_good_samples.py"),
     shell:
-        "work_dir=$(dirname {output}) ; /home/wdecoster/miniconda3/envs/pandas_plotly/bin/python {params.script} -c {input.overview} -v {input.vcfs} -o $work_dir 2> {log}"
+        "work_dir=$(dirname {output}) ; python {params.script} -c {input.overview} -v {input.vcfs} -o $work_dir 2> {log}"
 
 
 rule zip_good_samples:
@@ -444,8 +429,10 @@ rule plot_sex_check:
         script=os.path.join(os.path.dirname(workflow.basedir), "scripts/sex_check.py"),
         sampleinfo=os.path.join(work_dir, "data/pathSTR_samples.tsv"),
         minyield=32,
+    conda:
+        os.path.join(work_dir, "envs/pandas_plotly.yml")
     shell:
-        """/home/wdecoster/miniconda3/envs/pandas_plotly/bin/python {params.script} \
+        """python {params.script} \
         --cramino {input} \
         --sampleinfo {params.sampleinfo} \
         --minyield {params.minyield} > {output} 2> {log}"""
