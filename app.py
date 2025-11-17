@@ -80,6 +80,8 @@ def main():
 
         detail_df = parse.create_details_table(df.copy(), repeats)
         logging.info("Finished creating details table.")
+        # use the date of today as the database version identifier and save it to the database as a pd.Series
+        import datetime
         db_version = datetime.date.today().strftime("%Y-%m-%d")
         strchive_version = repeats.strchive_version()
         if args.save_db:
@@ -94,8 +96,7 @@ def main():
                     kmer_df.to_hdf(args.save_db, key=f"kmer_{dataset}_{gene}", mode="a")
                 repeats.df.to_hdf(args.save_db, key="repeats", mode="a")
                 detail_df.to_hdf(args.save_db, key="details", mode="a")
-                # use the date of today as the database version identifier and save it to the database as a pd.Series
-                import datetime
+
 
                 pd.Series(db_version).to_hdf(args.save_db, key="version", mode="a")
                 pd.Series(strchive_version).to_hdf(
