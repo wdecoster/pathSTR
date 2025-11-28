@@ -43,7 +43,7 @@ def main():
     if is_image_output:
         # For image formats, we cannot append to a single file
         # If multiple repeats, create separate files for each
-        for i, repeat in enumerate(repeats):
+        for repeat in repeats:
             repeat_df = df[df["coords"] == repeat]
             kmers = get_kmers(repeat_df, args)
             fig = plot_sequence(repeat_df, kmers, repeat, args)
