@@ -33,19 +33,60 @@ def main():
         # then, it should not be overwritten
         if "case" not in df.columns:
             df["case"] = 0
-    with open(args.out, "w") as out:
-        for repeat in df["coords"].unique():
+    # Determine output format based on file extension
+    output_ext = os.path.splitext(args.out)[1].lower()
+    image_formats = {".pdf", ".png", ".svg", ".jpeg", ".jpg", ".webp"}
+    is_image_output = output_ext in image_formats
+
+    repeats = df["coords"].unique()
+
+    if is_image_output:
+        # For image formats, we cannot append to a single file
+        # If multiple repeats, create separate files for each
+        for i, repeat in enumerate(repeats):
             repeat_df = df[df["coords"] == repeat]
-            # Either use the motifs as specified by the user, or select the <number> most frequent kmers
-            # with args.motifs the kmer length is ignored
-            # if kmers are specified as argument, the kmers are sorted by length
-            # so the longest kmers are plotted first, to accomodate for overlapping kmers
-            kmers = (
-                sorted(args.motifs.split(","), key=lambda x: len(x), reverse=True)
-                if args.motifs
-                else select_kmers(repeat_df, args.kmer, args.number)
-            )
-            plot_sequence(repeat_df, kmers, repeat, args).write_html(out)
+            kmers = get_kmers(repeat_df, args)
+            fig = plot_sequence(repeat_df, kmers, repeat, args)
+            if len(repeats) == 1:
+                output_file = args.out
+            else:
+                # Create separate files with repeat coordinates in filename
+                base, ext = os.path.splitext(args.out)
+                # Sanitize repeat name for filename (replace : with _)
+                safe_repeat = repeat.replace(":", "_")
+                output_file = f"{base}_{safe_repeat}{ext}"
+            try:
+                fig.write_image(output_file)
+            except ValueError as e:
+                if "kaleido" in str(e).lower():
+                    sys.stderr.write(
+                        "ERROR: Image export requires the 'kaleido' package.\n"
+                        "Install it with: pip install kaleido\n"
+                    )
+                    sys.exit(1)
+                raise
+    else:
+        # For HTML format, write all repeats to a single file
+        with open(args.out, "w") as out:
+            for repeat in repeats:
+                repeat_df = df[df["coords"] == repeat]
+                kmers = get_kmers(repeat_df, args)
+                plot_sequence(repeat_df, kmers, repeat, args).write_html(out)
+
+
+def get_kmers(repeat_df, args):
+    """
+    Get the list of kmers to plot.
+    Either use the motifs as specified by the user, or select the <number> most frequent kmers.
+    With args.motifs the kmer length is ignored.
+    If kmers are specified as argument, the kmers are sorted by length
+    so the longest kmers are plotted first, to accommodate for overlapping kmers.
+    """
+    return (
+        sorted(args.motifs.split(","), key=lambda x: len(x), reverse=True)
+        if args.motifs
+        else select_kmers(repeat_df, args.kmer, args.number)
+    )
 
 
 def plot_sequence(repeat_df, kmers, repeat, args):
@@ -415,7 +456,7 @@ def get_args():
         default=None,
     )
     parser.add_argument(
-        "-o", "--out", help="Output file name (html)", default="astronaut.html"
+        "-o", "--out", help="Output file name. Supported formats: html, pdf, png, svg, jpeg/jpg, webp", default="astronaut.html"
     )
     parser.add_argument(
         "-m", "--minlen", help="Minimal allele length to plot", default=20, type=int
