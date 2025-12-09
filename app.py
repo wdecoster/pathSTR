@@ -36,26 +36,43 @@ def main():
     )
     logging.info("Starting pathSTR-1000G-dash")
     if args.db:
-        df = pd.read_hdf(args.db, key="df").sort_values("gene")
-        kmers = {
-            (dataset, gene): pd.read_hdf(args.db, key=f"kmer_{dataset}_{gene}")
-            for gene in df["gene"].unique()
-            for dataset in df["dataset"].unique()
-        }
-        stat = pd.read_hdf(args.db, key="stat")
-        repeats = Repeats(df=pd.read_hdf(args.db, key="repeats"))
-        detail_df = pd.read_hdf(args.db, key="details")
-        db_version = pd.read_hdf(args.db, key="version").values[0]
-        # the try-except block here is very temporary, as the strchive_version is not yet in the database
-        # I will rebuild the database in the near future
-        # and hope to remove this try-except block before pushing this to production
-        # but for now, it is the best approach for testing and development
-        try:
-            strchive_version = pd.read_hdf(args.db, key="strchive_version").values[0]
-        except KeyError:
+        df = pd.read_parquet(os.path.join(args.db, "main.parquet")).sort_values("gene")
+        # Read all kmer files from the kmers subdirectory
+        kmers = {}
+        kmers_dir = os.path.join(args.db, "kmers")
+        if os.path.exists(kmers_dir):
+            for filename in os.listdir(kmers_dir):
+                if filename.endswith(".parquet"):
+                    # Parse dataset and gene from filename: kmer_STRdust_hg38_GENE.parquet
+                    parts = filename.replace(".parquet", "").split("_")
+                    if len(parts) >= 4 and parts[0] == "kmer":
+                        dataset = "_".join(parts[1:3])  # e.g., STRdust_hg38
+                        gene = "_".join(parts[3:])      # e.g., GENE (handles genes with underscores)
+                        kmers[(dataset, gene)] = pd.read_parquet(os.path.join(kmers_dir, filename))
+        stat = pd.read_parquet(os.path.join(args.db, "stat.parquet"))
+        repeats = Repeats(df=pd.read_parquet(os.path.join(args.db, "repeats.parquet")))
+        detail_df = pd.read_parquet(os.path.join(args.db, "details.parquet"))
+        
+        # Read metadata from JSON file
+        import json
+        metadata_file = os.path.join(args.db, "metadata.json")
+        if os.path.exists(metadata_file):
+            with open(metadata_file, 'r') as f:
+                metadata = json.load(f)
+            db_version = metadata.get("version", "unknown")
+            strchive_version = metadata.get("strchive_version", "NaN")
+        else:
+            db_version = "unknown"
             strchive_version = "NaN"
-        logging.info("Finished reading pathSTR_db file.")
+        logging.info("Finished reading pathSTR_db directory.")
     elif args.vcf and args.sample_info:
+        # Check if database already exists before doing expensive parsing
+        if args.save_db and os.path.exists(args.save_db) and not args.force:
+            logging.warning(
+                f"pathSTR_db directory {args.save_db} already exists, skipping. Use --force to overwrite."
+            )
+            return
+        
         # read in the BED file with the STRs from STRchive
         repeats = Repeats()
         logging.info("Finished parsing repeats.")
@@ -85,24 +102,52 @@ def main():
         db_version = datetime.date.today().strftime("%Y-%m-%d")
         strchive_version = repeats.strchive_version()
         if args.save_db:
-            if os.path.exists(args.save_db) and not args.force:
-                logging.warning(
-                    f"pathSTR_db file {args.save_db} already exists, skipping."
-                )
-            else:
-                df.to_hdf(args.save_db, key="df", mode="w")
-                stat.to_hdf(args.save_db, key="stat", mode="a")
-                for (dataset, gene), kmer_df in kmers.items():
-                    kmer_df.to_hdf(args.save_db, key=f"kmer_{dataset}_{gene}", mode="a")
-                repeats.df.to_hdf(args.save_db, key="repeats", mode="a")
-                detail_df.to_hdf(args.save_db, key="details", mode="a")
-
-
-                pd.Series(db_version).to_hdf(args.save_db, key="version", mode="a")
-                pd.Series(strchive_version).to_hdf(
-                    args.save_db, key="strchive_version", mode="a"
-                )
-                logging.info(f"Saved parsed data to {args.save_db}.")
+            # Create database directory structure
+            os.makedirs(args.save_db, exist_ok=True)
+            kmers_dir = os.path.join(args.save_db, "kmers")
+            os.makedirs(kmers_dir, exist_ok=True)
+            
+            # Convert object columns to strings for Parquet compatibility
+            # The 'support' column can have mixed types (integers from STRdust, strings from LongTR)
+            for col in df.select_dtypes(include=['object']).columns:
+                df[col] = df[col].astype(str)
+            
+            # Convert object columns in detail_df as well
+            for col in detail_df.select_dtypes(include=['object']).columns:
+                detail_df[col] = detail_df[col].astype(str)
+            
+            # Save main dataframes
+            df.to_parquet(os.path.join(args.save_db, "main.parquet"))
+            stat.to_parquet(os.path.join(args.save_db, "stat.parquet"))
+            repeats.df.to_parquet(os.path.join(args.save_db, "repeats.parquet"))
+            detail_df.to_parquet(os.path.join(args.save_db, "details.parquet"))
+            
+            # Save kmer dataframes - parquet handles wide dataframes efficiently
+            for (dataset, gene), kmer_df in kmers.items():
+                if not kmer_df.empty:
+                    try:
+                        logging.info(f"Processing kmer_{dataset}_{gene}: shape={kmer_df.shape}, n_columns={len(kmer_df.columns)}")
+                        kmer_df.to_parquet(os.path.join(kmers_dir, f"kmer_{dataset}_{gene}.parquet"))
+                        logging.info(f"Successfully saved kmer_{dataset}_{gene}")
+                    except Exception as e:
+                        logging.error(f"Failed to save kmer_{dataset}_{gene}: {e}")
+                        logging.error(f"DataFrame shape={kmer_df.shape}, n_columns={len(kmer_df.columns)}")
+                        raise
+                else:
+                    logging.info(f"Skipping empty kmer DataFrame for {dataset}_{gene}")
+            
+            # Save metadata as JSON
+            import json
+            metadata = {
+                "version": db_version,
+                "strchive_version": strchive_version,
+                "created_date": db_version,
+                "format": "parquet"
+            }
+            with open(os.path.join(args.save_db, "metadata.json"), 'w') as f:
+                json.dump(metadata, f, indent=2)
+            
+            logging.info(f"Saved parsed data to {args.save_db}.")
     else:
         logging.error("Provide a database, or a fofn of VCFs and sample info file.")
         raise ValueError("Provide a database, or a fofn of VCFs and sample info file")
@@ -267,7 +312,7 @@ def main():
                                                                     href="https://harrietdashnow.com/STRchive/",
                                                                     target="_blank",
                                                                 ),
-                                                                ". Other dependencies are Python and the Dash/plotly, pandas, hdf5 and cyvcf2 modules for the web app, and snakemake to orchestrate the variant calling.",
+                                                                ". Other dependencies are Python and the Dash/plotly, pandas, parquet and cyvcf2 modules for the web app, and snakemake to orchestrate the variant calling.",
                                                             ],
                                                             style={
                                                                 "textAlign": "justify"

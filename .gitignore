@@ -1,9 +1,11 @@
 .vscode/sftp.json
 1000G.pathSTRdb
+1000G.pathSTRdb.old
+pathSTR_database/
+test_database/
 pathSTR/__pycache__/*
 pathSTR-1000G-dash.log
 om_090.vcf.gz
-1000G.pathSTRdb.old
 genotypes.fofn
 assets/overview-strip.png:Zone.Identifier
 pathSTR_STRdust_hg38_good_samples.zip

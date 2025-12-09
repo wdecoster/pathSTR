@@ -1,0 +1,340 @@
+2025-12-03 13:06:34,547 - INFO - Starting pathSTR-1000G-dash
+2025-12-03 13:06:35,157 - INFO - Finished parsing repeats.
+2025-12-03 13:10:53,286 - INFO - Finished parsing VCFs.
+2025-12-03 13:10:53,442 - INFO - Finished calculating stats.
+2025-12-03 13:34:42,704 - INFO - Finished parsing kmers.
+2025-12-03 13:39:54,026 - INFO - Creating run-length encoded sequences
+2025-12-03 13:39:55,193 - INFO - Finished creating details table.
+/home/AD/wdecoster/pathSTR/app.py:93: PerformanceWarning: 
+your performance may suffer as PyTables will pickle object types that it cannot
+map directly to c-types [inferred_type->mixed-integer,key->block1_values] [items->Index(['chrom', 'gene', 'sample', 'allele', 'sequence', 'support', 'dataset',
+       'hg38_path', 'source', 'Sex', 'Superpopulation', 'Group'],
+      dtype='object')]
+
+  df.to_hdf(args.save_db, key="df", mode="w")
+2025-12-03 13:39:57,200 - INFO - Processing kmer_STRdust_hg38_ABCD3: shape=(2681, 25), n_columns=25
+2025-12-03 13:39:57,209 - INFO - Successfully saved kmer_STRdust_hg38_ABCD3
+2025-12-03 13:39:57,209 - INFO - Processing kmer_STRdust_t2t_ABCD3: shape=(1926, 25), n_columns=25
+2025-12-03 13:39:57,216 - INFO - Successfully saved kmer_STRdust_t2t_ABCD3
+2025-12-03 13:39:57,216 - INFO - Processing kmer_LongTR_hg38_ABCD3: shape=(796, 24), n_columns=24
+2025-12-03 13:39:57,221 - INFO - Successfully saved kmer_LongTR_hg38_ABCD3
+2025-12-03 13:39:57,221 - INFO - Processing kmer_LongTR_t2t_ABCD3: shape=(631, 24), n_columns=24
+2025-12-03 13:39:57,226 - INFO - Successfully saved kmer_LongTR_t2t_ABCD3
+2025-12-03 13:39:57,226 - INFO - Processing kmer_STRdust_hg38_AFF2: shape=(1181, 25), n_columns=25
+2025-12-03 13:39:57,232 - INFO - Successfully saved kmer_STRdust_hg38_AFF2
+2025-12-03 13:39:57,232 - INFO - Processing kmer_STRdust_t2t_AFF2: shape=(1421, 25), n_columns=25
+2025-12-03 13:39:57,239 - INFO - Successfully saved kmer_STRdust_t2t_AFF2
+2025-12-03 13:39:57,239 - INFO - Processing kmer_LongTR_hg38_AFF2: shape=(1007, 24), n_columns=24
+2025-12-03 13:39:57,244 - INFO - Successfully saved kmer_LongTR_hg38_AFF2
+2025-12-03 13:39:57,244 - INFO - Processing kmer_LongTR_t2t_AFF2: shape=(507, 23), n_columns=23
+2025-12-03 13:39:57,250 - INFO - Successfully saved kmer_LongTR_t2t_AFF2
+2025-12-03 13:39:57,250 - INFO - Processing kmer_STRdust_hg38_AFF3: shape=(2714, 25), n_columns=25
+2025-12-03 13:39:57,256 - INFO - Successfully saved kmer_STRdust_hg38_AFF3
+2025-12-03 13:39:57,256 - INFO - Processing kmer_STRdust_t2t_AFF3: shape=(1926, 25), n_columns=25
+2025-12-03 13:39:57,262 - INFO - Successfully saved kmer_STRdust_t2t_AFF3
+2025-12-03 13:39:57,262 - INFO - Processing kmer_LongTR_hg38_AFF3: shape=(1116, 25), n_columns=25
+2025-12-03 13:39:57,268 - INFO - Successfully saved kmer_LongTR_hg38_AFF3
+2025-12-03 13:39:57,268 - INFO - Processing kmer_LongTR_t2t_AFF3: shape=(1727, 25), n_columns=25
+2025-12-03 13:39:57,274 - INFO - Successfully saved kmer_LongTR_t2t_AFF3
+2025-12-03 13:39:57,274 - INFO - Processing kmer_STRdust_hg38_AR: shape=(1125, 25), n_columns=25
+2025-12-03 13:39:57,280 - INFO - Successfully saved kmer_STRdust_hg38_AR
+2025-12-03 13:39:57,280 - INFO - Processing kmer_STRdust_t2t_AR: shape=(1374, 25), n_columns=25
+2025-12-03 13:39:57,285 - INFO - Successfully saved kmer_STRdust_t2t_AR
+2025-12-03 13:39:57,285 - INFO - Processing kmer_LongTR_hg38_AR: shape=(1387, 25), n_columns=25
+2025-12-03 13:39:57,292 - INFO - Successfully saved kmer_LongTR_hg38_AR
+2025-12-03 13:39:57,292 - INFO - Processing kmer_LongTR_t2t_AR: shape=(607, 24), n_columns=24
+2025-12-03 13:39:57,298 - INFO - Successfully saved kmer_LongTR_t2t_AR
+2025-12-03 13:39:57,298 - INFO - Processing kmer_STRdust_hg38_ARX_EIEE1: shape=(867, 25), n_columns=25
+2025-12-03 13:39:57,304 - INFO - Successfully saved kmer_STRdust_hg38_ARX_EIEE1
+2025-12-03 13:39:57,304 - INFO - Processing kmer_STRdust_t2t_ARX_EIEE1: shape=(1367, 25), n_columns=25
+2025-12-03 13:39:57,310 - INFO - Successfully saved kmer_STRdust_t2t_ARX_EIEE1
+2025-12-03 13:39:57,310 - INFO - Processing kmer_LongTR_hg38_ARX_EIEE1: shape=(395, 25), n_columns=25
+2025-12-03 13:39:57,315 - INFO - Successfully saved kmer_LongTR_hg38_ARX_EIEE1
+2025-12-03 13:39:57,315 - INFO - Processing kmer_LongTR_t2t_ARX_EIEE1: shape=(200, 18), n_columns=18
+2025-12-03 13:39:57,320 - INFO - Successfully saved kmer_LongTR_t2t_ARX_EIEE1
+2025-12-03 13:39:57,320 - INFO - Processing kmer_STRdust_hg38_ARX_PRTS: shape=(1590, 25), n_columns=25
+2025-12-03 13:39:57,326 - INFO - Successfully saved kmer_STRdust_hg38_ARX_PRTS
+2025-12-03 13:39:57,326 - INFO - Processing kmer_STRdust_t2t_ARX_PRTS: shape=(1362, 25), n_columns=25
+2025-12-03 13:39:57,332 - INFO - Successfully saved kmer_STRdust_t2t_ARX_PRTS
+2025-12-03 13:39:57,332 - INFO - Processing kmer_LongTR_hg38_ARX_PRTS: shape=(154, 23), n_columns=23
+2025-12-03 13:39:57,337 - INFO - Successfully saved kmer_LongTR_hg38_ARX_PRTS
+2025-12-03 13:39:57,337 - INFO - Processing kmer_LongTR_t2t_ARX_PRTS: shape=(64, 20), n_columns=20
+2025-12-03 13:39:57,342 - INFO - Successfully saved kmer_LongTR_t2t_ARX_PRTS
+2025-12-03 13:39:57,342 - INFO - Processing kmer_STRdust_hg38_ATN1: shape=(2713, 25), n_columns=25
+2025-12-03 13:39:57,349 - INFO - Successfully saved kmer_STRdust_hg38_ATN1
+2025-12-03 13:39:57,349 - INFO - Processing kmer_STRdust_t2t_ATN1: shape=(1926, 25), n_columns=25
+2025-12-03 13:39:57,355 - INFO - Successfully saved kmer_STRdust_t2t_ATN1
+2025-12-03 13:39:57,356 - INFO - Processing kmer_LongTR_hg38_ATN1: shape=(1989, 25), n_columns=25
+2025-12-03 13:39:57,362 - INFO - Successfully saved kmer_LongTR_hg38_ATN1
+2025-12-03 13:39:57,362 - INFO - Processing kmer_LongTR_t2t_ATN1: shape=(1641, 25), n_columns=25
+2025-12-03 13:39:57,368 - INFO - Successfully saved kmer_LongTR_t2t_ATN1
+2025-12-03 13:39:57,368 - INFO - Processing kmer_STRdust_hg38_ATXN1: shape=(2218, 25), n_columns=25
+2025-12-03 13:39:57,374 - INFO - Successfully saved kmer_STRdust_hg38_ATXN1
+2025-12-03 13:39:57,374 - INFO - Processing kmer_STRdust_t2t_ATXN1: shape=(1926, 25), n_columns=25
+2025-12-03 13:39:57,381 - INFO - Successfully saved kmer_STRdust_t2t_ATXN1
+2025-12-03 13:39:57,381 - INFO - Processing kmer_LongTR_hg38_ATXN1: shape=(2131, 25), n_columns=25
+2025-12-03 13:39:57,387 - INFO - Successfully saved kmer_LongTR_hg38_ATXN1
+2025-12-03 13:39:57,387 - INFO - Processing kmer_LongTR_t2t_ATXN1: shape=(1587, 25), n_columns=25
+2025-12-03 13:39:57,393 - INFO - Successfully saved kmer_LongTR_t2t_ATXN1
+2025-12-03 13:39:57,393 - INFO - Processing kmer_STRdust_hg38_ATXN10: shape=(1983, 136), n_columns=136
+2025-12-03 13:39:57,401 - INFO - Successfully saved kmer_STRdust_hg38_ATXN10
+2025-12-03 13:39:57,401 - INFO - Processing kmer_STRdust_t2t_ATXN10: shape=(1926, 135), n_columns=135
+2025-12-03 13:39:57,408 - INFO - Successfully saved kmer_STRdust_t2t_ATXN10
+2025-12-03 13:39:57,408 - INFO - Processing kmer_LongTR_hg38_ATXN10: shape=(1770, 170), n_columns=170
+2025-12-03 13:39:57,417 - INFO - Successfully saved kmer_LongTR_hg38_ATXN10
+2025-12-03 13:39:57,417 - INFO - Processing kmer_LongTR_t2t_ATXN10: shape=(1481, 153), n_columns=153
+2025-12-03 13:39:57,424 - INFO - Successfully saved kmer_LongTR_t2t_ATXN10
+2025-12-03 13:39:57,424 - INFO - Processing kmer_STRdust_hg38_ATXN2: shape=(2637, 25), n_columns=25
+2025-12-03 13:39:57,430 - INFO - Successfully saved kmer_STRdust_hg38_ATXN2
+2025-12-03 13:39:57,430 - INFO - Processing kmer_STRdust_t2t_ATXN2: shape=(1926, 25), n_columns=25
+2025-12-03 13:39:57,437 - INFO - Successfully saved kmer_STRdust_t2t_ATXN2
+2025-12-03 13:39:57,437 - INFO - Processing kmer_LongTR_hg38_ATXN2: shape=(2386, 25), n_columns=25
+2025-12-03 13:39:57,443 - INFO - Successfully saved kmer_LongTR_hg38_ATXN2
+2025-12-03 13:39:57,443 - INFO - Processing kmer_LongTR_t2t_ATXN2: shape=(922, 25), n_columns=25
+2025-12-03 13:39:57,449 - INFO - Successfully saved kmer_LongTR_t2t_ATXN2
+2025-12-03 13:39:57,449 - INFO - Processing kmer_STRdust_hg38_ATXN3: shape=(2404, 25), n_columns=25
+2025-12-03 13:39:57,455 - INFO - Successfully saved kmer_STRdust_hg38_ATXN3
+2025-12-03 13:39:57,455 - INFO - Processing kmer_STRdust_t2t_ATXN3: shape=(1926, 25), n_columns=25
+2025-12-03 13:39:57,462 - INFO - Successfully saved kmer_STRdust_t2t_ATXN3
+2025-12-03 13:39:57,462 - INFO - Processing kmer_LongTR_hg38_ATXN3: shape=(1887, 25), n_columns=25
+2025-12-03 13:39:57,469 - INFO - Successfully saved kmer_LongTR_hg38_ATXN3
+2025-12-03 13:39:57,469 - INFO - Processing kmer_LongTR_t2t_ATXN3: shape=(1662, 25), n_columns=25
+2025-12-03 13:39:57,476 - INFO - Successfully saved kmer_LongTR_t2t_ATXN3
+2025-12-03 13:39:57,476 - INFO - Processing kmer_STRdust_hg38_ATXN7: shape=(1767, 25), n_columns=25
+2025-12-03 13:39:57,483 - INFO - Successfully saved kmer_STRdust_hg38_ATXN7
+2025-12-03 13:39:57,483 - INFO - Processing kmer_STRdust_t2t_ATXN7: shape=(1926, 25), n_columns=25
+2025-12-03 13:39:57,489 - INFO - Successfully saved kmer_STRdust_t2t_ATXN7
+2025-12-03 13:39:57,489 - INFO - Processing kmer_LongTR_hg38_ATXN7: shape=(814, 25), n_columns=25
+2025-12-03 13:39:57,495 - INFO - Successfully saved kmer_LongTR_hg38_ATXN7
+2025-12-03 13:39:57,495 - INFO - Processing kmer_LongTR_t2t_ATXN7: shape=(577, 25), n_columns=25
+2025-12-03 13:39:57,500 - INFO - Successfully saved kmer_LongTR_t2t_ATXN7
+2025-12-03 13:39:57,501 - INFO - Processing kmer_STRdust_hg38_ATXN8OS: shape=(2490, 25), n_columns=25
+2025-12-03 13:39:57,507 - INFO - Successfully saved kmer_STRdust_hg38_ATXN8OS
+2025-12-03 13:39:57,507 - INFO - Processing kmer_STRdust_t2t_ATXN8OS: shape=(1926, 25), n_columns=25
+2025-12-03 13:39:57,513 - INFO - Successfully saved kmer_STRdust_t2t_ATXN8OS
+2025-12-03 13:39:57,514 - INFO - Processing kmer_LongTR_hg38_ATXN8OS: shape=(2323, 25), n_columns=25
+2025-12-03 13:39:57,520 - INFO - Successfully saved kmer_LongTR_hg38_ATXN8OS
+2025-12-03 13:39:57,520 - INFO - Processing kmer_LongTR_t2t_ATXN8OS: shape=(1355, 25), n_columns=25
+2025-12-03 13:39:57,527 - INFO - Successfully saved kmer_LongTR_t2t_ATXN8OS
+2025-12-03 13:39:57,527 - INFO - Processing kmer_STRdust_hg38_BEAN1: shape=(2566, 96), n_columns=96
+2025-12-03 13:39:57,536 - INFO - Successfully saved kmer_STRdust_hg38_BEAN1
+2025-12-03 13:39:57,536 - INFO - Processing kmer_STRdust_t2t_BEAN1: shape=(1926, 90), n_columns=90
+2025-12-03 13:39:57,543 - INFO - Successfully saved kmer_STRdust_t2t_BEAN1
+2025-12-03 13:39:57,543 - INFO - Processing kmer_LongTR_hg38_BEAN1: shape=(2285, 100), n_columns=100
+2025-12-03 13:39:57,551 - INFO - Successfully saved kmer_LongTR_hg38_BEAN1
+2025-12-03 13:39:57,551 - INFO - Processing kmer_LongTR_t2t_BEAN1: shape=(1520, 105), n_columns=105
+2025-12-03 13:39:57,558 - INFO - Successfully saved kmer_LongTR_t2t_BEAN1
+2025-12-03 13:39:57,558 - INFO - Processing kmer_STRdust_hg38_C9orf72: shape=(2714, 478), n_columns=478
+2025-12-03 13:39:57,571 - INFO - Successfully saved kmer_STRdust_hg38_C9orf72
+2025-12-03 13:39:57,571 - INFO - Processing kmer_STRdust_t2t_C9orf72: shape=(1926, 469), n_columns=469
+2025-12-03 13:39:57,584 - INFO - Successfully saved kmer_STRdust_t2t_C9orf72
+2025-12-03 13:39:57,584 - INFO - Processing kmer_LongTR_hg38_C9orf72: shape=(2148, 209), n_columns=209
+2025-12-03 13:39:57,597 - INFO - Successfully saved kmer_LongTR_hg38_C9orf72
+2025-12-03 13:39:57,597 - INFO - Processing kmer_LongTR_t2t_C9orf72: shape=(1554, 203), n_columns=203
+2025-12-03 13:39:57,606 - INFO - Successfully saved kmer_LongTR_t2t_C9orf72
+2025-12-03 13:39:57,606 - INFO - Processing kmer_STRdust_hg38_CACNA1A: shape=(2297, 25), n_columns=25
+2025-12-03 13:39:57,613 - INFO - Successfully saved kmer_STRdust_hg38_CACNA1A
+2025-12-03 13:39:57,613 - INFO - Processing kmer_STRdust_t2t_CACNA1A: shape=(1926, 25), n_columns=25
+2025-12-03 13:39:57,620 - INFO - Successfully saved kmer_STRdust_t2t_CACNA1A
+2025-12-03 13:39:57,620 - INFO - Processing kmer_LongTR_hg38_CACNA1A: shape=(1920, 25), n_columns=25
+2025-12-03 13:39:57,627 - INFO - Successfully saved kmer_LongTR_hg38_CACNA1A
+2025-12-03 13:39:57,627 - INFO - Processing kmer_LongTR_t2t_CACNA1A: shape=(1317, 25), n_columns=25
+2025-12-03 13:39:57,633 - INFO - Successfully saved kmer_LongTR_t2t_CACNA1A
+2025-12-03 13:39:57,633 - INFO - Processing kmer_STRdust_hg38_CBL: shape=(2658, 25), n_columns=25
+2025-12-03 13:39:57,640 - INFO - Successfully saved kmer_STRdust_hg38_CBL
+2025-12-03 13:39:57,640 - INFO - Processing kmer_STRdust_t2t_CBL: shape=(1926, 25), n_columns=25
+2025-12-03 13:39:57,647 - INFO - Successfully saved kmer_STRdust_t2t_CBL
+2025-12-03 13:39:57,647 - INFO - Processing kmer_LongTR_hg38_CBL: shape=(1458, 25), n_columns=25
+2025-12-03 13:39:57,654 - INFO - Successfully saved kmer_LongTR_hg38_CBL
+2025-12-03 13:39:57,654 - INFO - Processing kmer_LongTR_t2t_CBL: shape=(967, 25), n_columns=25
+2025-12-03 13:39:57,661 - INFO - Successfully saved kmer_LongTR_t2t_CBL
+2025-12-03 13:39:57,661 - INFO - Processing kmer_STRdust_hg38_CHNG3: shape=(2718, 55), n_columns=55
+2025-12-03 13:39:57,669 - INFO - Successfully saved kmer_STRdust_hg38_CHNG3
+2025-12-03 13:39:57,669 - INFO - Processing kmer_STRdust_t2t_CHNG3: shape=(1926, 54), n_columns=54
+2025-12-03 13:39:57,676 - INFO - Successfully saved kmer_STRdust_t2t_CHNG3
+2025-12-03 13:39:57,676 - INFO - Processing kmer_LongTR_hg38_CHNG3: shape=(653, 62), n_columns=62
+2025-12-03 13:39:57,682 - INFO - Successfully saved kmer_LongTR_hg38_CHNG3
+2025-12-03 13:39:57,682 - INFO - Processing kmer_LongTR_t2t_CHNG3: shape=(574, 62), n_columns=62
+2025-12-03 13:39:57,689 - INFO - Successfully saved kmer_LongTR_t2t_CHNG3
+2025-12-03 13:39:57,689 - INFO - Processing kmer_STRdust_hg38_CNBP: shape=(2660, 70), n_columns=70
+2025-12-03 13:39:57,697 - INFO - Successfully saved kmer_STRdust_hg38_CNBP
+2025-12-03 13:39:57,697 - INFO - Processing kmer_STRdust_t2t_CNBP: shape=(1926, 71), n_columns=71
+2025-12-03 13:39:57,705 - INFO - Successfully saved kmer_STRdust_t2t_CNBP
+2025-12-03 13:39:57,705 - INFO - Processing kmer_LongTR_hg38_CNBP: shape=(2510, 68), n_columns=68
+2025-12-03 13:39:57,714 - INFO - Successfully saved kmer_LongTR_hg38_CNBP
+2025-12-03 13:39:57,715 - INFO - Processing kmer_LongTR_t2t_CNBP: shape=(1623, 69), n_columns=69
+2025-12-03 13:39:57,723 - INFO - Successfully saved kmer_LongTR_t2t_CNBP
+2025-12-03 13:39:57,723 - INFO - Processing kmer_STRdust_hg38_COMP: shape=(2675, 25), n_columns=25
+2025-12-03 13:39:57,730 - INFO - Successfully saved kmer_STRdust_hg38_COMP
+2025-12-03 13:39:57,730 - INFO - Processing kmer_STRdust_t2t_COMP: shape=(1926, 25), n_columns=25
+2025-12-03 13:39:57,737 - INFO - Successfully saved kmer_STRdust_t2t_COMP
+2025-12-03 13:39:57,737 - INFO - Processing kmer_LongTR_hg38_COMP: shape=(222, 25), n_columns=25
+2025-12-03 13:39:57,743 - INFO - Successfully saved kmer_LongTR_hg38_COMP
+2025-12-03 13:39:57,743 - INFO - Processing kmer_LongTR_t2t_COMP: shape=(211, 25), n_columns=25
+2025-12-03 13:39:57,749 - INFO - Successfully saved kmer_LongTR_t2t_COMP
+2025-12-03 13:39:57,749 - INFO - Processing kmer_STRdust_hg38_CSTB: shape=(2686, 687), n_columns=687
+2025-12-03 13:39:57,765 - INFO - Successfully saved kmer_STRdust_hg38_CSTB
+2025-12-03 13:39:57,766 - INFO - Processing kmer_STRdust_t2t_CSTB: shape=(1896, 680), n_columns=680
+2025-12-03 13:39:57,781 - INFO - Successfully saved kmer_STRdust_t2t_CSTB
+2025-12-03 13:39:57,781 - INFO - Processing kmer_LongTR_hg38_CSTB: shape=(2362, 356), n_columns=356
+2025-12-03 13:39:57,794 - INFO - Successfully saved kmer_LongTR_hg38_CSTB
+2025-12-03 13:39:57,794 - INFO - Processing kmer_LongTR_t2t_CSTB: shape=(886, 360), n_columns=360
+2025-12-03 13:39:57,803 - INFO - Successfully saved kmer_LongTR_t2t_CSTB
+2025-12-03 13:39:57,803 - INFO - Processing kmer_STRdust_hg38_DAB1: shape=(2607, 49), n_columns=49
+2025-12-03 13:39:57,811 - INFO - Successfully saved kmer_STRdust_hg38_DAB1
+2025-12-03 13:39:57,811 - INFO - Processing kmer_STRdust_t2t_DAB1: shape=(1926, 58), n_columns=58
+2025-12-03 13:39:57,819 - INFO - Successfully saved kmer_STRdust_t2t_DAB1
+2025-12-03 13:39:57,819 - INFO - Processing kmer_LongTR_hg38_DAB1: shape=(2434, 129), n_columns=129
+2025-12-03 13:39:57,828 - INFO - Successfully saved kmer_LongTR_hg38_DAB1
+2025-12-03 13:39:57,828 - INFO - Processing kmer_LongTR_t2t_DAB1: shape=(1637, 124), n_columns=124
+2025-12-03 13:39:57,836 - INFO - Successfully saved kmer_LongTR_t2t_DAB1
+2025-12-03 13:39:57,836 - INFO - Processing kmer_STRdust_hg38_DIP2B: shape=(2705, 25), n_columns=25
+2025-12-03 13:39:57,845 - INFO - Successfully saved kmer_STRdust_hg38_DIP2B
+2025-12-03 13:39:57,845 - INFO - Processing kmer_STRdust_t2t_DIP2B: shape=(1926, 25), n_columns=25
+2025-12-03 13:39:57,852 - INFO - Successfully saved kmer_STRdust_t2t_DIP2B
+2025-12-03 13:39:57,852 - INFO - Processing kmer_LongTR_hg38_DIP2B: shape=(671, 25), n_columns=25
+2025-12-03 13:39:57,859 - INFO - Successfully saved kmer_LongTR_hg38_DIP2B
+2025-12-03 13:39:57,859 - INFO - Processing kmer_LongTR_t2t_DIP2B: shape=(518, 25), n_columns=25
+2025-12-03 13:39:57,865 - INFO - Successfully saved kmer_LongTR_t2t_DIP2B
+2025-12-03 13:39:57,865 - INFO - Processing kmer_STRdust_hg38_DMD: shape=(1808, 24), n_columns=24
+2025-12-03 13:39:57,872 - INFO - Successfully saved kmer_STRdust_hg38_DMD
+2025-12-03 13:39:57,872 - INFO - Processing kmer_STRdust_t2t_DMD: shape=(1435, 24), n_columns=24
+2025-12-03 13:39:57,879 - INFO - Successfully saved kmer_STRdust_t2t_DMD
+2025-12-03 13:39:57,879 - INFO - Processing kmer_LongTR_hg38_DMD: shape=(1799, 25), n_columns=25
+2025-12-03 13:39:57,886 - INFO - Successfully saved kmer_LongTR_hg38_DMD
+2025-12-03 13:39:57,886 - INFO - Processing kmer_LongTR_t2t_DMD: shape=(757, 23), n_columns=23
+2025-12-03 13:39:57,892 - INFO - Successfully saved kmer_LongTR_t2t_DMD
+2025-12-03 13:39:57,892 - INFO - Processing kmer_STRdust_hg38_DMPK: shape=(2698, 25), n_columns=25
+2025-12-03 13:39:57,900 - INFO - Successfully saved kmer_STRdust_hg38_DMPK
+2025-12-03 13:39:57,900 - INFO - Processing kmer_STRdust_t2t_DMPK: shape=(1926, 24), n_columns=24
+2025-12-03 13:39:57,908 - INFO - Successfully saved kmer_STRdust_t2t_DMPK
+2025-12-03 13:39:57,908 - INFO - Processing kmer_LongTR_hg38_DMPK: shape=(2541, 25), n_columns=25
+2025-12-03 13:39:57,915 - INFO - Successfully saved kmer_LongTR_hg38_DMPK
+2025-12-03 13:39:57,915 - INFO - Processing kmer_LongTR_t2t_DMPK: shape=(1258, 24), n_columns=24
+2025-12-03 13:39:57,922 - INFO - Successfully saved kmer_LongTR_t2t_DMPK
+2025-12-03 13:39:57,922 - INFO - Processing kmer_STRdust_hg38_EIF4A3: shape=(2134, 9869), n_columns=9869
+2025-12-03 13:39:57,930 - ERROR - Failed to save kmer_STRdust_hg38_EIF4A3: HDF5 error back trace
+
+  File "H5A.c", line 230, in H5Acreate2
+    unable to synchronously create attribute
+  File "H5A.c", line 181, in H5A__create_api_common
+    unable to create attribute
+  File "H5A.c", line 125, in H5A__create_common
+    unable to create attribute
+  File "H5VLcallback.c", line 1023, in H5VL_attr_create
+    attribute create failed
+  File "H5VLcallback.c", line 990, in H5VL__attr_create
+    attribute create failed
+  File "H5VLnative_attr.c", line 111, in H5VL__native_attr_create
+    unable to create attribute
+  File "H5Aint.c", line 368, in H5A__create
+    unable to create attribute in object header
+  File "H5Oattribute.c", line 327, in H5O__attr_create
+    unable to create new attribute in header
+  File "H5Omessage.c", line 192, in H5O__msg_append_real
+    unable to create new message
+  File "H5Omessage.c", line 1730, in H5O__msg_alloc
+    unable to allocate space for message
+  File "H5Oalloc.c", line 1262, in H5O__alloc
+    object header message is too large
+
+End of HDF5 error back trace
+
+Can't set attribute 'non_index_axes' in node:
+ /kmer_STRdust_hg38_EIF4A3 (Group) ''.
+2025-12-03 13:39:57,930 - ERROR - DataFrame shape=(2134, 9869), n_columns=9869
+2025-12-03 13:39:57,931 - ERROR - First 5 columns: ['CCTCGCTGTGCCGCTGCCGA', 'CCCTCGCTGTGCCGCTGCCG', 'CCGCCGTCGCTGTGCCGCTG', 'CCGCCGCCGCTGTGCCGCTG', 'ATGTGCCGCTGCCGCCGCCG']
+Traceback (most recent call last):
+  File "/home/AD/wdecoster/pathSTR/app.py", line 1771, in <module>
+    main()
+    ~~~~^^
+  File "/home/AD/wdecoster/pathSTR/app.py", line 99, in main
+    kmer_df.to_hdf(args.save_db, key=f"kmer_{dataset}_{gene}", mode="a", format="table")
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/AD/wdecoster/anaconda3/envs/pathSTR/lib/python3.14/site-packages/pandas/util/_decorators.py", line 333, in wrapper
+    return func(*args, **kwargs)
+  File "/home/AD/wdecoster/anaconda3/envs/pathSTR/lib/python3.14/site-packages/pandas/core/generic.py", line 2877, in to_hdf
+    pytables.to_hdf(
+    ~~~~~~~~~~~~~~~^
+        path_or_buf,
+        ^^^^^^^^^^^^
+    ...<13 lines>...
+        encoding=encoding,
+        ^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/home/AD/wdecoster/anaconda3/envs/pathSTR/lib/python3.14/site-packages/pandas/io/pytables.py", line 317, in to_hdf
+    f(store)
+    ~^^^^^^^
+  File "/home/AD/wdecoster/anaconda3/envs/pathSTR/lib/python3.14/site-packages/pandas/io/pytables.py", line 299, in <lambda>
+    f = lambda store: store.put(
+                      ~~~~~~~~~^
+        key,
+        ^^^^
+    ...<8 lines>...
+        dropna=dropna,
+        ^^^^^^^^^^^^^^
+    )
+    ^
+  File "/home/AD/wdecoster/anaconda3/envs/pathSTR/lib/python3.14/site-packages/pandas/io/pytables.py", line 1173, in put
+    self._write_to_group(
+    ~~~~~~~~~~~~~~~~~~~~^
+        key,
+        ^^^^
+    ...<12 lines>...
+        dropna=dropna,
+        ^^^^^^^^^^^^^^
+    )
+    ^
+  File "/home/AD/wdecoster/anaconda3/envs/pathSTR/lib/python3.14/site-packages/pandas/io/pytables.py", line 1871, in _write_to_group
+    s.write(
+    ~~~~~~~^
+        obj=value,
+        ^^^^^^^^^^
+    ...<11 lines>...
+        track_times=track_times,
+        ^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/home/AD/wdecoster/anaconda3/envs/pathSTR/lib/python3.14/site-packages/pandas/io/pytables.py", line 4500, in write
+    table.set_attrs()
+    ~~~~~~~~~~~~~~~^^
+  File "/home/AD/wdecoster/anaconda3/envs/pathSTR/lib/python3.14/site-packages/pandas/io/pytables.py", line 3663, in set_attrs
+    self.attrs.non_index_axes = self.non_index_axes
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/AD/wdecoster/anaconda3/envs/pathSTR/lib/python3.14/site-packages/tables/attributeset.py", line 529, in __setattr__
+    self._g__setattr(name, value)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "/home/AD/wdecoster/anaconda3/envs/pathSTR/lib/python3.14/site-packages/tables/attributeset.py", line 470, in _g__setattr
+    self._g_setattr(self._v_node, name, stvalue)
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "tables/hdf5extension.pyx", line 841, in tables.hdf5extension.AttributeSet._g_setattr
+tables.exceptions.HDF5ExtError: HDF5 error back trace
+
+  File "H5A.c", line 230, in H5Acreate2
+    unable to synchronously create attribute
+  File "H5A.c", line 181, in H5A__create_api_common
+    unable to create attribute
+  File "H5A.c", line 125, in H5A__create_common
+    unable to create attribute
+  File "H5VLcallback.c", line 1023, in H5VL_attr_create
+    attribute create failed
+  File "H5VLcallback.c", line 990, in H5VL__attr_create
+    attribute create failed
+  File "H5VLnative_attr.c", line 111, in H5VL__native_attr_create
+    unable to create attribute
+  File "H5Aint.c", line 368, in H5A__create
+    unable to create attribute in object header
+  File "H5Oattribute.c", line 327, in H5O__attr_create
+    unable to create new attribute in header
+  File "H5Omessage.c", line 192, in H5O__msg_append_real
+    unable to create new message
+  File "H5Omessage.c", line 1730, in H5O__msg_alloc
+    unable to allocate space for message
+  File "H5Oalloc.c", line 1262, in H5O__alloc
+    object header message is too large
+
+End of HDF5 error back trace
+
+Can't set attribute 'non_index_axes' in node:
+ /kmer_STRdust_hg38_EIF4A3 (Group) ''.

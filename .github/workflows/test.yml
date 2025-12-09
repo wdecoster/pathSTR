@@ -19,11 +19,11 @@ jobs:
     - name: install
       run: pip3 install -r requirements.txt
     - name: make_db
-      run: python app.py --vcf test/genotypes_test.fofn --save_db test.pathSTRdb --sample_info data/pathSTR_samples.tsv --store_only
+      run: python app.py --vcf test/genotypes_test.fofn --save_db test_database --sample_info data/pathSTR_samples.tsv --store_only
     - name: run and shutdown
       run: |
         set -e
-        python app.py --db test.pathSTRdb &
+        python app.py --db test_database &
         app_pid=$!
         sleep 120
         kill $app_pid
