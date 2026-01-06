@@ -200,7 +200,10 @@ def plot_sequence(repeat_df, kmers, repeat, args):
         )
         fig.update_xaxes(showline=True, linewidth=2, linecolor="black", mirror=True)
         fig.update_yaxes(showline=True, linewidth=2, linecolor="black", mirror=True)
-    fig.update_layout(height=args.height)
+    layout_params = {"height": args.height}
+    if args.width:
+        layout_params["width"] = args.width
+    fig.update_layout(**layout_params)
     if args.legend_corner == "topright":
         fig.update_layout(
             legend=dict(
@@ -506,6 +509,7 @@ def get_args():
         choices=["topright", "bottomright"],
     )
     parser.add_argument("--height", help="Height of the plot", default=800, type=int)
+    parser.add_argument("--width", help="Width of the plot", type=int)
     parser.add_argument(
         "-t",
         "--table",
