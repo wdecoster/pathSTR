@@ -143,9 +143,15 @@ def plot_sequence(repeat_df, kmers, repeat, args):
     else:
         repeat_df["identifier"] = repeat_df["sample"] + "_" + repeat_df["allele"]
     # explode the seq_colored and range columns for plotting
-    repeat_colors = repeat_df[
-        ["identifier", "sequence", "seq_colored", "range"]
-    ].explode(["seq_colored", "range"])
+    # In older pandas, explode multiple columns separately
+    try:
+        repeat_colors = repeat_df[
+            ["identifier", "sequence", "seq_colored", "range"]
+        ].explode("seq_colored").explode("range")
+    except ValueError:
+        sys.stderr.write("ERROR: Problem exploding the sequences for plotting. Possibly due to missing sequences?\n")
+        repeat_df.to_csv("debug_repeat_df.tsv", sep="\t", index=False)
+        raise
     # convert colors back to kmers, for the legend and hoverdata
     repeat_colors["kmer"] = repeat_colors["seq_colored"].apply(
         lambda x: inverse_dict[x]
