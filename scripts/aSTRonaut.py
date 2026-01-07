@@ -200,6 +200,15 @@ def plot_sequence(repeat_df, kmers, repeat, args):
         )
         fig.update_xaxes(showline=True, linewidth=2, linecolor="black", mirror=True)
         fig.update_yaxes(showline=True, linewidth=2, linecolor="black", mirror=True)
+    if args.minimal:
+        fig.update_layout(
+            plot_bgcolor="rgba(0, 0, 0, 0)",
+            paper_bgcolor="rgba(0, 0, 0, 0)",
+            font=dict(size=24),
+            title=args.title,
+        )
+        fig.update_xaxes(showline=True, linewidth=2, linecolor="black")
+        fig.update_yaxes(showline=False, title="")
     layout_params = {"height": args.height}
     if args.width:
         layout_params["width"] = args.width
@@ -480,10 +489,16 @@ def get_args():
     parser.add_argument(
         "--hide_allele_label", help="Hide 'Allele' from labels", action="store_true"
     )
+    # --publication and --minimal are mutually exclusive but this is not properly implemented, could be done in argparse but is now just tested before returning the args
     parser.add_argument(
         "--publication",
         help="Create a plot suitable for publication",
         action="store_true",
+    )
+    parser.add_argument(
+        "--minimal",
+        help="Create a plot suitable for publication, but with less fluff",
+        action="store_true"
     )
     parser.add_argument(
         "--title", help="Title of the plot", default="Repeat composition"
@@ -530,6 +545,8 @@ def get_args():
         sys.exit("ERROR: Please provide either VCFs or a table, not both")
     if not args.table and not args.vcf:
         sys.exit("ERROR: Please provide either VCFs or a table")
+    if args.publication and args.minimal:
+        sys.exit("ERROR: Please specify either --publication or --minimal, not both")
     return args
 
 
