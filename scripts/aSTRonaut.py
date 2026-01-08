@@ -223,6 +223,16 @@ def plot_sequence(repeat_df, kmers, repeat, args):
                 itemsizing="constant",
             )
         )
+    elif args.legend_corner == "outside":
+        fig.update_layout(
+            legend=dict(
+                yanchor="top",
+                y=0.95,
+                xanchor="left",
+                x=0.99,
+                itemsizing="constant",
+            )
+        )
     else:
         fig.update_layout(
             legend=dict(
@@ -521,7 +531,7 @@ def get_args():
         "--legend_corner",
         help="Corner of the legend",
         default="bottomright",
-        choices=["topright", "bottomright"],
+        choices=["topright", "bottomright", "outside"],
     )
     parser.add_argument("--height", help="Height of the plot", default=800, type=int)
     parser.add_argument("--width", help="Width of the plot", type=int)
