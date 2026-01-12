@@ -24,7 +24,7 @@ def violin_plot(
 
     if "density" in violin_options:
         fig = px.violin(
-            filtered_df,
+            filtered_df.reset_index(drop=True),
             x=x_val,
             y="ref_diff" if "ref_diff" in violin_options else "length",
             color="Sex" if "sex" in violin_options else "Group",
@@ -35,7 +35,7 @@ def violin_plot(
         fig.update_traces(spanmode="hard", marker=dict(size=3))
     else:
         fig = px.strip(
-            filtered_df,
+            filtered_df.reset_index(drop=True),
             x=x_val,
             y="ref_diff" if "ref_diff" in violin_options else "length",
             color="Sex" if "sex" in violin_options else "Group",
@@ -163,7 +163,7 @@ def length_scatter(
             showscale=False,
         )
     scatters = px.scatter(
-        pivot_df,
+        pivot_df.reset_index(drop=True),
         x="ref_diff_longest" if "ref_diff" in violin_options else "longest_allele",
         y=("ref_diff_shortest" if "ref_diff" in violin_options else "shortest_allele"),
         color="Sex" if "sex" in violin_options else "Group",
@@ -240,7 +240,7 @@ def length_scatter(
 
 def create_strip_plot(strip_df, log=False):
     fig = px.strip(
-        strip_df,
+        strip_df.reset_index(drop=True),
         x="gene",
         y="length",
         color="Group",
@@ -531,6 +531,12 @@ def kmer_plot_sequence(
         repeat_df = repeat_df.sort_values(by="length", ascending=False).dropna(
             subset=["sequence"]
         )
+    # Filter out rows where sequence is the string "None" or empty
+    repeat_df = repeat_df[
+        (repeat_df["sequence"] != "None") & 
+        (repeat_df["sequence"] != "") & 
+        (repeat_df["sequence"].notna())
+    ]
     # draw a scatter plot showing for each sample and allele the order of the kmers in the sequence
     # replace in the sequence from frequent to less frequent the kmers with their color
     repeat_df["seq_colored"] = repeat_df["sequence"]
@@ -566,7 +572,7 @@ def kmer_plot_sequence(
     )
 
     fig = px.scatter(
-        repeat_colors,
+        repeat_colors.reset_index(drop=True),
         x="range",
         y="identifier",
         color="kmer",
