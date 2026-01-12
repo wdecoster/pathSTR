@@ -16,8 +16,8 @@ class Repeats(object):
         Also a CSV is downloaded, with extra information about the repeats.
         A dataframe is constructed, which is the data underlying the Repeats class instance
 
-        The motif length that is used for e.g. kmer plots is the longest motif, which may have undesired consequences.
-        But the shortest or random choice also was a bad thing, e.g. for FXN.
+        The motif length that is used for e.g. kmer plots is the shortest motif that is not 1.
+        Using the longest motif causes kmer file sizes to explode for genes with long motifs.
         """
         urls = {
             "hg38": "https://raw.githubusercontent.com/dashnowlab/STRchive/refs/heads/main/data/catalogs/STRchive-disease-loci.hg38.TRGT.bed",
@@ -51,7 +51,7 @@ class Repeats(object):
         )
         # extracting the motifs and their length based on the bed info field
         bed["motifs"] = bed["info"].apply(self.get_motifs)
-        bed["motif_length"] = bed["motifs"].apply(self.get_longest_motif_length)
+        bed["motif_length"] = bed["motifs"].apply(self.get_motif_length)
         # currently overwriting the id field of the table, but it would make more sense to have a more descriptive column name, e.g. "coords"
         bed["id"] = (
             bed["chrom"] + ":" + bed["start"].astype(str) + "-" + bed["end"].astype(str)
@@ -75,11 +75,17 @@ class Repeats(object):
         ][0]
 
     @staticmethod
-    def get_longest_motif_length(motifs):
+    def get_motif_length(motifs):
         """
-        Return the length of the longest motif
+        Return the length of the shortest motif that is not 1
+        Falls back to 1 if all motifs have length 1
         """
-        return sorted([len(m) for m in motifs], reverse=True)[0]
+        lengths = sorted([len(m) for m in motifs])
+        # Return the first motif length that is not 1, or 1 if all are 1
+        for length in lengths:
+            if length > 1:
+                return length
+        return lengths[0]
 
     def strchive_version(self):
         """get the latest release from https://github.com/dashnowlab/STRchive"""
