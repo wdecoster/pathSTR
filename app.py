@@ -3,6 +3,7 @@
 
 
 import pandas as pd
+import pyarrow.parquet as pq
 from argparse import ArgumentParser
 import os
 import logging
@@ -25,6 +26,9 @@ from pathSTR.count_kmers import parse_kmers
 
 def main():
     args = get_args()
+    # Hardcoded exclusion: genes that cause issues with kmer file size/memory
+    EXCLUDED_GENES_KMER = {"MUC1", "PLIN4"}
+    
     # Set up logging, with time stamps, to a file with max size of 10MB and simultaneously to stderr
     logging.basicConfig(
         level=logging.INFO,
@@ -36,7 +40,9 @@ def main():
     )
     logging.info("Starting pathSTR-1000G-dash")
     if args.db:
-        df = pd.read_parquet(os.path.join(args.db, "main.parquet")).sort_values("gene")
+        df = pq.read_table(
+            os.path.join(args.db, "main.parquet")
+        ).to_pandas().sort_values("gene")
         # Read all kmer files from the kmers subdirectory
         kmers = {}
         kmers_dir = os.path.join(args.db, "kmers")
@@ -48,10 +54,21 @@ def main():
                     if len(parts) >= 4 and parts[0] == "kmer":
                         dataset = "_".join(parts[1:3])  # e.g., STRdust_hg38
                         gene = "_".join(parts[3:])      # e.g., GENE (handles genes with underscores)
-                        kmers[(dataset, gene)] = pd.read_parquet(os.path.join(kmers_dir, filename))
-        stat = pd.read_parquet(os.path.join(args.db, "stat.parquet"))
-        repeats = Repeats(df=pd.read_parquet(os.path.join(args.db, "repeats.parquet")))
-        detail_df = pd.read_parquet(os.path.join(args.db, "details.parquet"))
+                        # Skip problematic genes (hardcoded exclusion from kmer loading)
+                        if gene in EXCLUDED_GENES_KMER:
+                            continue
+                        kmers[(dataset, gene)] = pq.read_table(
+                            os.path.join(kmers_dir, filename)
+                        ).to_pandas()
+        stat = pq.read_table(
+            os.path.join(args.db, "stat.parquet")
+        ).to_pandas()
+        repeats = Repeats(df=pq.read_table(
+            os.path.join(args.db, "repeats.parquet")
+        ).to_pandas())
+        detail_df = pq.read_table(
+            os.path.join(args.db, "details.parquet")
+        ).to_pandas()
         
         # Read metadata from JSON file
         import json
@@ -91,6 +108,7 @@ def main():
         kmers = {
             (dataset, gene): parse_kmers(df, repeats, gene, dataset)
             for gene in df["gene"].unique()
+            if gene not in EXCLUDED_GENES_KMER
             for dataset in df["dataset"].unique()
         }
         logging.info("Finished parsing kmers.")
@@ -158,8 +176,11 @@ def main():
     # Create Dash app
     app = Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
     # Define app layout
+    # Use the same exclusion list for the Repeat Composition dropdown
     gene_options = [
-        {"label": gene, "value": gene} for gene in sorted(df["gene"].unique().tolist())
+        {"label": gene, "value": gene} 
+        for gene in sorted(df["gene"].unique().tolist())
+        if gene not in EXCLUDED_GENES_KMER
     ]
     dataset_options = [
         {"label": dataset, "value": dataset}
