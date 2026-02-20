@@ -207,7 +207,7 @@ def plot_sequence(repeat_df, kmers, repeat, args):
             font=dict(size=24),
             title=args.title,
         )
-        fig.update_xaxes(showline=True, linewidth=2, linecolor="black")
+        fig.update_xaxes(showline=True, linewidth=2, linecolor="black", ticks="outside", ticklen=5)
         fig.update_yaxes(showline=False, title="")
     layout_params = {"height": args.height}
     if args.width:
