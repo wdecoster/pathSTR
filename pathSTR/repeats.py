@@ -1,6 +1,5 @@
 import pandas as pd
 import logging
-import sys
 
 
 class Repeats(object):
@@ -9,6 +8,22 @@ class Repeats(object):
             self.df = df
         else:
             self.df = pd.concat(self.get_repeat_info(b) for b in build)
+        self._build_overlap_index()
+
+    def _build_overlap_index(self):
+        """Per-(build, chrom) list of (start, end, name) for overlap-based locus lookup.
+        Used by `coords_to_gene` because the (start, end) reported by callers can vary by a
+        few bp depending on the genotyper's anchoring convention (STRdust historically used
+        POS=BED.start, then POS=BED.start+1, current builds POS=BED.start+2). An exact
+        coordinate match is too brittle; an overlap test tolerates all conventions while
+        STRchive's loci are far enough apart that ambiguity is not a concern."""
+        self._intervals = {}
+        for idx, row in self.df.iterrows():
+            chrom, coords = idx.split(":")
+            start_s, end_s = coords.split("-")
+            self._intervals.setdefault((row["build"], chrom), []).append(
+                (int(start_s), int(end_s), row["name"])
+            )
 
     def get_repeat_info(self, build):
         """
@@ -97,18 +112,21 @@ class Repeats(object):
 
     def query(self, dataset, gene, column):
         """
-        Generic method to query the dataframe based on a dataset, gene and column (or list of columns)
+        Generic method to query the dataframe based on a dataset, gene and column (or list of columns).
+        Raises KeyError if no row matches — the caller is responsible for handling it. We don't
+        sys.exit here because this method is called from Dash callbacks; a missing gene must not
+        bring down the whole server.
         """
         build = dataset.split("_")[1]
         try:
             return self.df.loc[
                 (self.df["build"] == build) & (self.df["name"] == gene), column
             ].values[0]
-        except IndexError:
-            logging.error(f"Query in repeats failed for {build}, {gene}, {column}")
-            logging.error(f"Dumping repeats object to repeats.tsv for debugging")
-            self.df.to_csv("repeats.tsv", sep="\t")
-            sys.exit(1)
+        except IndexError as e:
+            logging.error(f"Query in repeats failed for build={build}, gene={gene}, column={column}")
+            raise KeyError(
+                f"No repeat entry for build={build}, gene={gene}"
+            ) from e
 
     def motif_length(self, gene, dataset=None, build=None):
         if not build and not dataset:
@@ -122,11 +140,25 @@ class Repeats(object):
     def motifs(self, gene, dataset):
         return self.query(dataset, gene, "motifs")
 
-    def coords_to_gene(self, id, build):
-        try:
-            return self.df[self.df["build"] == build].loc[id, "name"]
-        except KeyError:
+    def coords_to_gene(self, chrom, start, end, build):
+        """Return the catalog gene whose interval overlaps the query, or None.
+
+        Overlap is half-open: a catalog [s, e) and query [start, end) match iff s < end
+        and e > start. This tolerates the small anchor/padding differences that arise
+        between STRdust versions (and between STRdust and LongTR) — e.g. POS = BED.start
+        + 0, +1, or +2 all still resolve to the same locus.
+        """
+        chrom_norm = chrom if chrom.startswith("chr") else f"chr{chrom}"
+        intervals = self._intervals.get((build, chrom_norm), [])
+        matches = [name for (s, e, name) in intervals if s < end and e > start]
+        if not matches:
             return None
+        if len(matches) > 1:
+            logging.warning(
+                f"Multiple catalog hits for {chrom_norm}:{start}-{end} in {build}: "
+                f"{matches} — returning first."
+            )
+        return matches[0]
 
     def gene_to_coords(self, gene, dataset):
         build = dataset.split("_")[1]

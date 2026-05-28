@@ -92,15 +92,11 @@ def parse_vcf(vcf, build, caller, repeats, name=None):
     for v in VCF(vcf):
         chrom = v.CHROM if v.CHROM.startswith("chr") else "chr" + v.CHROM
         if caller_ == "strdust":
-            gene = repeats.coords_to_gene(
-                f"{chrom}:{str(v.POS)}-{str(v.end)}", build=build
-            )
+            gene = repeats.coords_to_gene(chrom, v.POS, v.end, build=build)
         elif caller_ == "longtr":
             # LongTR may adjust the POS field to include a SNV https://github.com/gymrek-lab/LongTR/issues/8
             start = v.INFO.get("START")
-            gene = repeats.coords_to_gene(
-                f"{chrom}:{str(start)}-{str(v.end)}", build=build
-            )
+            gene = repeats.coords_to_gene(chrom, start, v.end, build=build)
         else:
             raise ValueError("Unexpected caller")
         if gene is None:
@@ -109,9 +105,21 @@ def parse_vcf(vcf, build, caller, repeats, name=None):
             )
             continue
         if caller_ == "strdust":
-            full_lengths = v.format("FRB")[0]
-            ref_diff = v.format("RB")[0]
-            support = v.format("SUP")[0]
+            frb = v.format("FRB")
+            rb = v.format("RB")
+            sup = v.format("SUP")
+            if frb is None or rb is None:
+                # STRdust's QUICKREF mode (hom-ref shortcut) emits only GT:SUP — no
+                # per-allele FRB/RB assembly. Both alleles match REF, so derive lengths
+                # from the REF sequence and set ref_diff to 0.
+                ref_len = v.end - v.POS + 1
+                full_lengths = [ref_len, ref_len]
+                ref_diff = [0, 0]
+                support = sup[0] if sup is not None else [-1, -1]
+            else:
+                full_lengths = frb[0]
+                ref_diff = rb[0]
+                support = sup[0]
         elif caller_ == "longtr":
             # GB is presented as 'x|y' with the difference with the reference per allele
             ref_diff = [int(i) for i in v.format("GB")[0].split("|")]
@@ -144,7 +152,7 @@ def parse_vcf(vcf, build, caller, repeats, name=None):
         )
         calls.append(
             (
-                v.CHROM,
+                chrom,
                 gene,
                 name,
                 "Allele2",
@@ -168,7 +176,13 @@ def parse_alts(alts, genotype):
         elif genotype[phase] == 2:
             sequences.append(alts[1] if not alts[1] == "<DEL>" else None)
         else:
-            raise ValueError("Unexpected genotype")
+            # >2 ALT alleles in a single-sample VCF is unexpected for STRdust/LongTR output —
+            # surface what was actually seen so the caller can report it clearly instead of
+            # falling back to the generic "not a valid VCF" upload error.
+            raise ValueError(
+                f"Unexpected genotype index {genotype[phase]} (allele {phase}); "
+                f"single-sample VCFs are expected to have at most 2 ALT alleles, got {len(alts)}: {alts}"
+            )
     return sequences
 
 
