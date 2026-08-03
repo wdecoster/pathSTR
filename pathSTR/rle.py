@@ -124,7 +124,9 @@ def rle(sequence, motif_length):
 
     kudos to Rob Patro and https://stackoverflow.com/a/78634539/6631639
     """
-    if not sequence:
+    # pandas represents missing string values as float NaN (which is truthy),
+    # so guard on the type rather than falsiness alone.
+    if not isinstance(sequence, str) or not sequence:
         return None
     elif len(sequence) < motif_length * 2:
         return sequence
