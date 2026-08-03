@@ -1,7 +1,7 @@
-cyvcf2==0.30.27
+cyvcf2==0.34.0
 dash==4.4.1
 dash-bio==1.0.2
 dash-bootstrap-components==2.0.4
 pandas==3.0.5
 pyarrow==25.0.0
-rustworkx==0.14.2
+rustworkx==0.18.0
