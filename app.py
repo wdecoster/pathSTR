@@ -14,7 +14,6 @@ import dash
 from dash import Dash, html, dcc, dash_table
 from dash.dependencies import Input, Output, State
 import dash_bootstrap_components as dbc
-import dash_daq as daq
 import dash_bio as dashbio
 
 import pathSTR.parse_input as parse
@@ -731,9 +730,11 @@ def main():
                                                                         width=3,
                                                                     ),
                                                                     dbc.Col(
-                                                                        daq.NumericInput(
+                                                                        dcc.Input(
                                                                             id="kmer-options-group-min-size",
+                                                                            type="number",
                                                                             value=0,
+                                                                            min=0,
                                                                             max=1000,
                                                                         ),
                                                                         width="auto",
@@ -873,8 +874,9 @@ def main():
                                                                         width=3,
                                                                     ),
                                                                     dbc.Col(
-                                                                        daq.NumericInput(
+                                                                        dcc.Input(
                                                                             id="kmer-options-raw-num-columns",
+                                                                            type="number",
                                                                             value="",
                                                                         ),
                                                                         width=3,
