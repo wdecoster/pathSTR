@@ -3,5 +3,5 @@ dash==4.4.1
 dash-bio==1.0.2
 dash-bootstrap-components==2.0.4
 pandas==3.0.5
-pyarrow==25.0.0
-rustworkx==0.18.0
+pyarrow==25.0.1
+rustworkx==0.18.1
