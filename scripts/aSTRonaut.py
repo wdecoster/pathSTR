@@ -169,7 +169,7 @@ def plot_sequence(repeat_df, kmers, repeat, args):
             "identifier": "Sample/allele" if not args.somatic else "Reads",
         },
         title=f"Repeat at {repeat}",
-        category_orders={"identifier": repeat_df["identifier"][::-1]},
+        category_orders={"identifier": repeat_df["identifier"].tolist()[::-1]},
     )
 
     fig.update_traces(marker=dict(size=args.size, symbol="square"))
