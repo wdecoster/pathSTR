@@ -582,7 +582,7 @@ def kmer_plot_sequence(
             "range": "Nucleotide position in repeat",
             "identifier": "Sample/allele",
         },
-        category_orders={"identifier": repeat_df["identifier"][::-1]},
+        category_orders={"identifier": repeat_df["identifier"].tolist()[::-1]},
         title=f"Sequence of <i>{selected_gene}</i> repeat",
     )
     fig.update_traces(marker=dict(size=3))
