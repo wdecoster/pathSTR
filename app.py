@@ -23,19 +23,18 @@ from pathSTR.version import __version__
 from pathSTR.count_kmers import parse_kmers
 
 
-def main():
-    args = get_args()
+def create_app(args, *, log_to_file=True):
     # Hardcoded exclusion: genes that cause issues with kmer file size/memory
     EXCLUDED_GENES_KMER = {"MUC1", "PLIN4"}
     
     # Set up logging, with time stamps, to a file with max size of 10MB and simultaneously to stderr
+    handlers = [logging.StreamHandler(sys.stderr)]
+    if log_to_file:
+        handlers.insert(0, logging.FileHandler("pathSTR-1000G-dash.log", mode="w"))
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s - %(levelname)s - %(message)s",
-        handlers=[
-            logging.FileHandler("pathSTR-1000G-dash.log", mode="w"),
-            logging.StreamHandler(sys.stderr),
-        ],
+        handlers=handlers,
     )
     logging.info("Starting pathSTR-1000G-dash")
     if args.db:
@@ -1783,11 +1782,10 @@ def main():
         )
 
     app.title = "pathSTR"
-    # Run the app
-    app.run(host=args.host, port=args.port, debug=args.debug)
+    return app
 
 
-def get_args():
+def get_args(argv=None):
     parser = ArgumentParser(description="Get STRs from VCF")
     parser.add_argument(
         "--vcf",
@@ -1818,7 +1816,20 @@ def get_args():
     parser.add_argument(
         "--port", help="Port used to serve the application", default=8050, type=int
     )
-    return parser.parse_args()
+    return parser.parse_args(argv)
+
+
+def create_wsgi_app():
+    database = os.environ.get("PATHSTR_DB", "/data/pathSTR_database")
+    app = create_app(get_args(["--db", database]), log_to_file=False)
+    return app.server
+
+
+def main():
+    args = get_args()
+    app = create_app(args)
+    if app is not None:
+        app.run(host=args.host, port=args.port, debug=args.debug)
 
 
 if __name__ == "__main__":
