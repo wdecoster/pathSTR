@@ -1,0 +1,7 @@
+.git/
+.gitea/
+README.md
+
+# dev only; the image creates its own venv from uv.lock
+.venv/
+__pycache__/
