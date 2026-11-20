@@ -1,0 +1,7 @@
+name: llama-codebase-review
+on:
+  workflow_dispatch:
+
+jobs:
+  llm-review:
+    uses: eline/llama-review-action/.gitea/workflows/llm-review.yml@main

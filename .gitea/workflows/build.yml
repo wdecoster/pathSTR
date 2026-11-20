@@ -1,0 +1,98 @@
+# Builds and tests on push and pull request. A release promotes the already built image.
+# The monthly run only rescans :prod, for CVEs published since it was promoted
+name: Build and push image
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  release:
+    types: [published]
+  schedule:
+    - cron: "0 4 1 * *"
+  workflow_dispatch: {}
+
+env:
+  REGISTRY: git.bioinf.be
+  # Trivy reads any flag from a TRIVY_-prefixed variable
+  TRIVY_EXIT_CODE: "1"
+  TRIVY_SEVERITY: HIGH,CRITICAL
+  TRIVY_IGNORE_UNFIXED: "true"
+
+jobs:
+  build:
+    if: github.event_name != 'release' && github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Pick the image name
+        run: echo "IMAGE=$REGISTRY/$(echo "$GITHUB_REPOSITORY" | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_ENV"
+
+      - name: Build or reuse the image for this commit
+        id: image
+        uses: https://git.bioinf.be/BioIT/container-image/build@main
+        with:
+          image: ${{ env.IMAGE }}
+          username: ${{ secrets.REGISTRY_USER }}
+          password: ${{ secrets.REGISTRY_TOKEN }}
+
+      - name: Test
+        run: ./.gitea/test.sh "${{ steps.image.outputs.image-ref }}"
+
+      - name: Scan
+        uses: https://git.bioinf.be/BioIT/container-image/scan@main
+        with:
+          image-ref: ${{ steps.image.outputs.image-ref }}
+
+      - name: Publish the per-commit tag
+        if: github.event_name != 'pull_request'
+        uses: https://git.bioinf.be/BioIT/container-image/push@main
+        with:
+          image-ref: ${{ steps.image.outputs.image-ref }}
+          username: ${{ secrets.REGISTRY_USER }}
+          password: ${{ secrets.REGISTRY_TOKEN }}
+
+      - name: Remove the image from the runner
+        if: always()
+        run: docker image rm -f "${{ steps.image.outputs.image-ref }}" || true
+
+  release:
+    if: github.event_name == 'release'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Pick the image name
+        run: echo "IMAGE=$REGISTRY/$(echo "$GITHUB_REPOSITORY" | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_ENV"
+
+      - name: Promote to prod
+        uses: https://git.bioinf.be/BioIT/container-image/promote@main
+        with:
+          image: ${{ env.IMAGE }}
+          to: prod ${{ github.event.release.tag_name }}
+          username: ${{ secrets.REGISTRY_USER }}
+          password: ${{ secrets.REGISTRY_TOKEN }}
+
+  scan-prod:
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      # for trivy.yaml and .trivyignore.yaml
+      - uses: actions/checkout@v4
+
+      - name: Pick the image name
+        run: echo "IMAGE=$REGISTRY/$(echo "$GITHUB_REPOSITORY" | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_ENV"
+
+      - name: Scan the published prod image
+        uses: https://git.bioinf.be/BioIT/container-image/scan@main
+        with:
+          image-ref: ${{ env.IMAGE }}:prod
+          username: ${{ secrets.REGISTRY_USER }}
+          password: ${{ secrets.REGISTRY_TOKEN }}

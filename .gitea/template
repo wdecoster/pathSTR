@@ -1,0 +1,7 @@
+# Files where Gitea expands $REPO_NAME/$REPO_OWNER/etc. placeholders when
+# someone generates a new repo from this template.
+# https://docs.gitea.com/usage/repository/template-repositories/
+Containerfile
+README.md
+pyproject.toml
+uv.lock
