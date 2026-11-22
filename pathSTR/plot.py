@@ -132,18 +132,12 @@ def length_scatter(
             }
         )
     )
-    pivot_df["longest_allele"] = pivot_df.apply(
-        lambda x: max(x["length_Allele1"], x["length_Allele2"]), axis=1
-    )
-    pivot_df["shortest_allele"] = pivot_df.apply(
-        lambda x: min(x["length_Allele1"], x["length_Allele2"]), axis=1
-    )
-    pivot_df["ref_diff_longest"] = pivot_df.apply(
-        lambda x: max(x["ref_diff_Allele1"], x["ref_diff_Allele2"]), axis=1
-    )
-    pivot_df["ref_diff_shortest"] = pivot_df.apply(
-        lambda x: min(x["ref_diff_Allele1"], x["ref_diff_Allele2"]), axis=1
-    )
+    lengths = pivot_df[["length_Allele1", "length_Allele2"]]
+    ref_diffs = pivot_df[["ref_diff_Allele1", "ref_diff_Allele2"]]
+    pivot_df["longest_allele"] = lengths.max(axis=1)
+    pivot_df["shortest_allele"] = lengths.min(axis=1)
+    pivot_df["ref_diff_longest"] = ref_diffs.max(axis=1)
+    pivot_df["ref_diff_shortest"] = ref_diffs.min(axis=1)
     fig = go.Figure()
     if "density" in violin_options:
         fig.add_histogram2dcontour(
@@ -386,7 +380,7 @@ def kmer_plot_collapsed(
     kmer_df = kmer_df.loc[:, mask1 | mask2]
 
     # round every kmer count to the nearest 0.1
-    kmer_df = kmer_df.map(lambda x: round(x * 10) / 10)
+    kmer_df = (kmer_df * 10).round() / 10
     # group all samples together that have identical kmers numbers
     collapsed = (
         kmer_df.reset_index()

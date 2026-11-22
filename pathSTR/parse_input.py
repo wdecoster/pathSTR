@@ -5,7 +5,6 @@ import io
 import gzip
 import base64
 import binascii
-import tempfile
 import zlib
 from cyvcf2 import VCF
 import numpy as np
@@ -73,7 +72,7 @@ def parse_input(vcf_fofn, sample_info, repeats):
         ~(
             (df["chrom"] == "chrX")
             & (df["Sex"] == "male")
-            & df.duplicated(subset=["sample", "gene", "length"], keep="first")
+            & df.duplicated(subset=["dataset", "sample", "gene", "length"], keep="first")
         )
     ]
     return df
@@ -90,6 +89,7 @@ def parse_vcf(vcf, build, caller, repeats, name=None):
     """
     caller_ = caller.lower()
     calls = []
+    skipped = 0
     if name is None:
         name = os.path.basename(vcf).replace(".vcf.gz", "")
     for v in VCF(vcf):
@@ -103,9 +103,12 @@ def parse_vcf(vcf, build, caller, repeats, name=None):
         else:
             raise ValueError("Unexpected caller")
         if gene is None:
-            logging.warning(
-                f"Skipping {chrom}:{str(v.POS)}-{str(v.end)} from {caller}:{build} in {vcf} - interval not found in bed file."
-            )
+            # log the first few only: an upload can contain many unrelated records
+            if skipped < 5:
+                logging.warning(
+                    f"Skipping {chrom}:{str(v.POS)}-{str(v.end)} from {caller}:{build} in {name} - interval not found in bed file."
+                )
+            skipped += 1
             continue
         if caller_ == "strdust":
             frb = v.format("FRB")
@@ -166,6 +169,8 @@ def parse_vcf(vcf, build, caller, repeats, name=None):
                 f"{caller}_{build}",
             )
         )
+    if skipped:
+        logging.warning(f"Skipped {skipped} records in {name} not overlapping a catalog locus.")
     return calls
 
 
@@ -229,6 +234,20 @@ def decode_upload(contents):
     return decoded
 
 
+def parse_vcf_bytes(data, build, caller, repeats, name):
+    """Parse an in-memory (uncompressed) VCF without writing it to disk.
+    The bytes go into an anonymous in-memory file (memfd, Linux) that cyvcf2 opens by its
+    /proc path. A pipe does not work: cyvcf2 holds the GIL while blocked on the read, so a
+    writer thread cannot fill it, and writing first deadlocks beyond the pipe buffer size."""
+    fd = os.memfd_create("upload", os.MFD_CLOEXEC)
+    try:
+        with os.fdopen(os.dup(fd), "wb") as f:
+            f.write(data)
+        return parse_vcf(f"/proc/self/fd/{fd}", build, caller, repeats, name=name)
+    finally:
+        os.close(fd)
+
+
 def parse_uploaded_vcf(contents, uploaded_filename, repeats, build, caller):
     """
     Parse the uploaded VCF file and return a dataframe
@@ -237,18 +256,16 @@ def parse_uploaded_vcf(contents, uploaded_filename, repeats, build, caller):
     :param repeats: repeats object
 
     This function expects that the VCF contains only one sample
-    The file is expected to be a VCF or a gzipped VCF. It is decoded from base64, decompressed
-    with a size cap, and written to a temporary file that is removed afterwards.
+    The file is expected to be a VCF or a gzipped VCF. It is decoded from base64 and decompressed
+    with a size cap, and kept in memory, never written to disk (the app promises users that
+    uploads are not stored).
     """
     try:
-        logging.info(f"Decoding {uploaded_filename}")
+        logging.info(f"Decoding {uploaded_filename!r}")
         decoded = decode_upload(contents)
         name = str(uploaded_filename).replace(".vcf", "").replace(".gz", "")
-        with tempfile.NamedTemporaryFile(suffix=".vcf") as tmp:
-            tmp.write(decoded)
-            tmp.flush()
-            calls = parse_vcf(tmp.name, build, caller, repeats, name=name)
-        logging.info(f"Parsed {uploaded_filename}")
+        calls = parse_vcf_bytes(decoded, build, caller, repeats, name=name)
+        logging.info(f"Parsed {uploaded_filename!r}")
     except UploadError as e:
         logging.warning(f"Rejected upload {uploaded_filename}: {e}")
         return None
