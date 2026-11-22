@@ -4,6 +4,9 @@ import os
 import io
 import gzip
 import base64
+import binascii
+import tempfile
+import zlib
 from cyvcf2 import VCF
 import numpy as np
 from .rle import rle
@@ -190,6 +193,42 @@ def flatten(it):
     return chain.from_iterable(it)
 
 
+# Limits on untrusted uploads. dcc.Upload's max_size is only enforced in the browser, so the
+# server must check sizes itself. A gzip bomb of ~100 KB can expand to ~100 MB, hence the cap
+# on the decompressed size. A VCF genotyped for the STRchive loci is far below these limits.
+MAX_UPLOAD_BYTES = 100_000
+MAX_DECOMPRESSED_BYTES = 20_000_000
+
+
+class UploadError(ValueError):
+    pass
+
+
+def decode_upload(contents):
+    """Decode a Dash upload (data URL with base64 payload) into uncompressed VCF bytes.
+    Raises UploadError on malformed, oversized or over-expanding content."""
+    if not isinstance(contents, str) or "," not in contents:
+        raise UploadError("upload is not a base64 data URL")
+    content_string = contents.split(",", 1)[1]
+    # base64 inflates by 4/3; reject before decoding
+    if len(content_string) > MAX_UPLOAD_BYTES * 4 // 3 + 4:
+        raise UploadError("upload exceeds maximum size")
+    try:
+        decoded = base64.b64decode(content_string, validate=True)
+    except (binascii.Error, ValueError) as e:
+        raise UploadError(f"invalid base64 content: {e}") from e
+    if decoded[:2] == b"\x1f\x8b":
+        # GzipFile handles the multi-member streams of BGZF; read at most one byte past the cap
+        try:
+            with gzip.GzipFile(fileobj=io.BytesIO(decoded)) as gz:
+                decoded = gz.read(MAX_DECOMPRESSED_BYTES + 1)
+        except (OSError, EOFError, zlib.error) as e:
+            raise UploadError(f"invalid gzip content: {e}") from e
+    if len(decoded) > MAX_DECOMPRESSED_BYTES:
+        raise UploadError("decompressed upload exceeds maximum size")
+    return decoded
+
+
 def parse_uploaded_vcf(contents, uploaded_filename, repeats, build, caller):
     """
     Parse the uploaded VCF file and return a dataframe
@@ -198,23 +237,21 @@ def parse_uploaded_vcf(contents, uploaded_filename, repeats, build, caller):
     :param repeats: repeats object
 
     This function expects that the VCF contains only one sample
-    The file is expected to be a VCF or a gzipped VCF, and is decoded from base64, kept in memory, and passed to cyvcf2
+    The file is expected to be a VCF or a gzipped VCF. It is decoded from base64, decompressed
+    with a size cap, and written to a temporary file that is removed afterwards.
     """
-    _, content_string = contents.split(",")
-    decoded = base64.b64decode(content_string)
     try:
         logging.info(f"Decoding {uploaded_filename}")
-        r, w = os.pipe()
-        name = uploaded_filename.replace(".vcf", "").replace(".gz", "")
-        if uploaded_filename.endswith(".gz"):
-            with os.fdopen(w, "wb") as f:
-                f.write(decoded)
-        else:
-            with gzip.open(w, "wb") as f:
-                f.write(decoded)
-        r_fd = os.fdopen(r, "rb")
-        calls = parse_vcf(r_fd, build, caller, repeats, name=name)
+        decoded = decode_upload(contents)
+        name = str(uploaded_filename).replace(".vcf", "").replace(".gz", "")
+        with tempfile.NamedTemporaryFile(suffix=".vcf") as tmp:
+            tmp.write(decoded)
+            tmp.flush()
+            calls = parse_vcf(tmp.name, build, caller, repeats, name=name)
         logging.info(f"Parsed {uploaded_filename}")
+    except UploadError as e:
+        logging.warning(f"Rejected upload {uploaded_filename}: {e}")
+        return None
     except OSError as e:
         # this happens when the file is not a VCF, or malformed
         logging.warning(e)

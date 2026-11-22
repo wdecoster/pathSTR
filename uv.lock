@@ -610,7 +610,7 @@ sdist = { url = "https://files.pythonhosted.org/packages/a0/f5/65d3c930767aece10
 
 [[package]]
 name = "pathstr"
-version = "0.1.0"
+version = "1.4.1"
 source = { virtual = "." }
 dependencies = [
     { name = "cyvcf2" },

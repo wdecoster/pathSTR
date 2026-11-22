@@ -303,10 +303,13 @@ def kmer_plot_raw(
     # the plot takes up a terrible lot of vertical space, so try splitting it up in <columns> columns
     # this however could be a problem on a small screen
     # maybe add another slider to select the number of columns
-    if num_columns:
-        columns = num_columns
-    else:
-        columns = ceil(len(kmer_df) / 500)
+    # num_columns comes from a free-form input: bound it to avoid huge subplot grids
+    max_columns = max(1, ceil(len(kmer_df) / 500))
+    try:
+        columns = int(num_columns) if num_columns else max_columns
+    except (TypeError, ValueError):
+        columns = max_columns
+    columns = min(max(columns, 1), max_columns, 20)
     fig = make_subplots(rows=1, cols=columns)
     batch_num = ceil(len(kmer_df) / columns)
     for i in range(0, columns):
@@ -533,20 +536,22 @@ def kmer_plot_sequence(
         )
     # Filter out rows where sequence is the string "None" or empty
     repeat_df = repeat_df[
-        (repeat_df["sequence"] != "None") & 
+        (repeat_df["sequence"] != "None") &
+        (repeat_df["sequence"] != "nan") &
         (repeat_df["sequence"] != "") & 
         (repeat_df["sequence"].notna())
     ]
     # draw a scatter plot showing for each sample and allele the order of the kmers in the sequence
     # replace in the sequence from frequent to less frequent the kmers with their color
-    repeat_df["seq_colored"] = repeat_df["sequence"]
+    repeat_df["seq_colored"] = repeat_df["sequence"].str.upper()
     for k, c in kmer_dict.items():
         repeat_df["seq_colored"] = repeat_df["seq_colored"].str.replace(
-            k, f"{c};" * len(k)
+            k.upper(), f"{c};" * len(k), regex=False
         )
-    # replace the remaining nucleotides with grey
+    # replace the remaining characters (other nucleotides, N, ...) with grey; the color
+    # tokens only contain lowercase "rgb", digits, parentheses, commas, spaces and ";"
     repeat_df["seq_colored"] = repeat_df["seq_colored"].str.replace(
-        r"[ACTG]", "rgb(128, 128, 128);", regex=True
+        r"[^rgb0-9(), ;]", "rgb(128, 128, 128);", regex=True
     )
     # remove the last semicolon
     repeat_df["seq_colored"] = repeat_df["seq_colored"].str.rstrip(";")
@@ -667,4 +672,24 @@ def get_colormaps():
 def hex_to_rgb(hex):
     hex = hex.lstrip("#")
     tup = tuple(int(hex[i : i + 2], 16) for i in (0, 2, 4))
-    return f"rgb{tup}"
+    return f"rgb({tup[0]}, {tup[1]}, {tup[2]})"
+
+
+def empty_figure(message):
+    """An empty figure showing a message, e.g. when no data is available"""
+    fig = go.Figure()
+    fig.update_layout(
+        xaxis={"visible": False},
+        yaxis={"visible": False},
+        annotations=[
+            {
+                "text": message,
+                "xref": "paper",
+                "yref": "paper",
+                "showarrow": False,
+                "font": {"size": 16},
+            }
+        ],
+        plot_bgcolor="white",
+    )
+    return fig

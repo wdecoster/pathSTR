@@ -24,12 +24,20 @@ class AppEntrypointTests(unittest.TestCase):
         self.assertEqual(create.call_args.args[0].db, "/data/pathSTR_database")
 
     def test_cli_starts_dash_with_requested_options(self):
-        args = app.get_args(["--db", "db", "--host", "0.0.0.0", "--port", "9000", "--debug"])
+        args = app.get_args(["--db", "db", "--host", "127.0.0.1", "--port", "9000", "--debug"])
         dash_app = Mock()
         with patch.object(app, "get_args", return_value=args):
             with patch.object(app, "create_app", return_value=dash_app):
                 app.main()
-        dash_app.run.assert_called_once_with(host="0.0.0.0", port=9000, debug=True)
+        dash_app.run.assert_called_once_with(host="127.0.0.1", port=9000, debug=True)
+
+    def test_cli_refuses_debug_on_network_host(self):
+        args = app.get_args(["--db", "db", "--host", "0.0.0.0", "--debug"])
+        with patch.object(app, "get_args", return_value=args):
+            with patch.object(app, "create_app") as create:
+                with self.assertRaises(SystemExit):
+                    app.main()
+        create.assert_not_called()
 
     def test_cli_store_only_does_not_start_server(self):
         args = app.get_args(["--db", "db", "--store_only"])

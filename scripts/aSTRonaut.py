@@ -123,14 +123,15 @@ def plot_sequence(repeat_df, kmers, repeat, args):
         )
     # draw a scatter plot showing for each sample and allele the order of the kmers in the sequence
     # replace in the sequence the kmers with their color
-    repeat_df["seq_colored"] = repeat_df["sequence"]
+    repeat_df["seq_colored"] = repeat_df["sequence"].str.upper()
     for k, c in kmer_dict.items():
         repeat_df["seq_colored"] = repeat_df["seq_colored"].str.replace(
-            k, f"{c};" * len(k)
+            k.upper(), f"{c};" * len(k), regex=False
         )
-    # replace the remaining nucleotides with black
+    # replace the remaining characters (other nucleotides, N, ...) with grey; the color
+    # tokens only contain lowercase "rgb", digits, parentheses, commas, spaces and ";"
     repeat_df["seq_colored"] = repeat_df["seq_colored"].str.replace(
-        r"[ACTG]", "rgb(128, 128, 128);", regex=True
+        r"[^rgb0-9(), ;]", "rgb(128, 128, 128);", regex=True
     )
     # remove the last semicolon
     repeat_df["seq_colored"] = repeat_df["seq_colored"].str.rstrip(";")
@@ -249,7 +250,7 @@ def plot_sequence(repeat_df, kmers, repeat, args):
 def hex_to_rgb(hex):
     hex = hex.lstrip("#")
     tup = tuple(int(hex[i : i + 2], 16) for i in (0, 2, 4))
-    return f"rgb{tup}"
+    return f"rgb({tup[0]}, {tup[1]}, {tup[2]})"
 
 
 def select_kmers(repeat_df, motif_length, number=10):

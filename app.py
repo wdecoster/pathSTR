@@ -6,6 +6,7 @@ import pandas as pd
 import pyarrow.parquet as pq
 from argparse import ArgumentParser
 import os
+import gzip
 import logging
 from math import floor, ceil
 import sys
@@ -21,6 +22,13 @@ from pathSTR.repeats import Repeats
 import pathSTR.plot as plot
 from pathSTR.version import __version__
 from pathSTR.count_kmers import parse_kmers
+
+
+LOOPBACK_HOSTS = {"127.0.0.1", "localhost", "::1"}
+# Upload limits: number of files per upload and the overall request size. The per-file size
+# is parse.MAX_UPLOAD_BYTES, checked in the browser and again in parse.decode_upload.
+MAX_UPLOAD_FILES = 20
+MAX_REQUEST_BYTES = 20 * 1024 * 1024
 
 
 def create_app(args, *, log_to_file=True):
@@ -125,12 +133,12 @@ def create_app(args, *, log_to_file=True):
             
             # Convert object columns to strings for Parquet compatibility
             # The 'support' column can have mixed types (integers from STRdust, strings from LongTR)
-            for col in df.select_dtypes(include=['object']).columns:
-                df[col] = df[col].astype(str)
-            
-            # Convert object columns in detail_df as well
-            for col in detail_df.select_dtypes(include=['object']).columns:
-                detail_df[col] = detail_df[col].astype(str)
+            # Only cast non-missing values, so NaN/None stay missing instead of becoming "nan"/"None"
+            for frame in (df, detail_df):
+                for col in frame.select_dtypes(include=["object"]).columns:
+                    frame[col] = frame[col].map(
+                        lambda x: str(x) if pd.notna(x) else None
+                    )
             
             # Save main dataframes
             df.to_parquet(os.path.join(args.save_db, "main.parquet"))
@@ -173,6 +181,25 @@ def create_app(args, *, log_to_file=True):
     num_samples = len(df["sample"].unique())
     # Create Dash app
     app = Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
+    # Reject oversized callback requests (uploads and the stored-df round trip) before they
+    # reach a callback; dcc.Upload's max_size is only enforced in the browser.
+    app.server.config["MAX_CONTENT_LENGTH"] = MAX_REQUEST_BYTES
+    valid_datasets = set(df["dataset"].unique())
+
+    def get_kmers(dataset, gene):
+        """kmer table for (dataset, gene); an empty table with a length column if absent"""
+        kmer_df = kmers.get((dataset, gene))
+        if kmer_df is None or kmer_df.empty or "length" not in kmer_df.columns:
+            return pd.DataFrame(columns=["length"], dtype=float)
+        return kmer_df
+
+    def combined_kmers(stored_df, dataset, gene):
+        kmer_df = get_kmers(dataset, gene)
+        if stored_df:
+            uploaded = parse_kmers(pd.DataFrame(stored_df), repeats, gene, dataset)
+            if not uploaded.empty:
+                kmer_df = pd.concat([kmer_df, uploaded]).fillna(0.0)
+        return kmer_df
     # Define app layout
     # Use the same exclusion list for the Repeat Composition dropdown
     gene_options = [
@@ -1048,7 +1075,7 @@ def create_app(args, *, log_to_file=True):
                                     "margin": "10px",
                                 },
                                 multiple=True,
-                                max_size=100000,
+                                max_size=parse.MAX_UPLOAD_BYTES,
                             ),
                             html.Div(id="upload-status"),
                             dash_table.DataTable(
@@ -1079,7 +1106,7 @@ def create_app(args, *, log_to_file=True):
                                             "filter_query": "{max_z_score} > 3",
                                         },
                                         "fontWeight": "bold",
-                                        "color": "rgd(155, 0, 0)",
+                                        "color": "rgb(155, 0, 0)",
                                     },
                                 ],
                                 export_format="xlsx",
@@ -1094,6 +1121,8 @@ def create_app(args, *, log_to_file=True):
     )
 
     # Define app callbacks
+    # the full cohort TSV is generated once on first request, not on every click
+    download_cache = {}
     @app.callback(
         Output("targets-table", "data"),
         Input("dropdown-dataset", "value"),
@@ -1114,7 +1143,10 @@ def create_app(args, *, log_to_file=True):
         """
         Enable users to download the data as a TSV file
         """
-        return dcc.send_data_frame(df.to_csv, "pathSTR-1000G.tsv", sep="\t")
+        if "tsv" not in download_cache:
+            # gzipped, as the uncompressed table is hundreds of MB
+            download_cache["tsv"] = gzip.compress(df.to_csv(sep="\t").encode(), compresslevel=6)
+        return dcc.send_bytes(download_cache["tsv"], "pathSTR-1000G.tsv.gz")
 
     @app.callback(
         [Output("stored-df", "data"), Output("upload-status", "children")],
@@ -1130,6 +1162,13 @@ def create_app(args, *, log_to_file=True):
         Process the uploaded user-VCF files
         """
         if list_of_contents is not None:
+            if dataset not in valid_datasets:
+                return pd.DataFrame(()).to_dict("records"), "Unknown dataset selected."
+            if len(list_of_contents) > MAX_UPLOAD_FILES:
+                return (
+                    pd.DataFrame(()).to_dict("records"),
+                    f"Too many files: please upload at most {MAX_UPLOAD_FILES} files at once.",
+                )
             caller, build = dataset.split("_")
             dfs = [
                 parse.parse_uploaded_vcf(content, filename, repeats, build, caller)
@@ -1147,6 +1186,13 @@ def create_app(args, *, log_to_file=True):
                         (pd.DataFrame(()).to_dict("records")),
                         f"Error processing file {filename}, please make sure it is a valid VCF.gz file, generated by the specified genotyper for the STRchive STRs. Please report unsolved issues on GitHub at https://github.com/wdecoster/pathSTR/issues/.",
                     )
+            # make sample names unique, as duplicates break pivoting on gene and sample
+            seen = {}
+            for i, udf in enumerate(dfs):
+                name = udf["sample"].iloc[0]
+                seen[name] = seen.get(name, 0) + 1
+                if seen[name] > 1:
+                    dfs[i] = udf.assign(sample=f"{name}_{seen[name]}")
             uploaded_df = pd.concat(dfs, ignore_index=True)
             plural = "s" if len(dfs) > 1 else ""
             return uploaded_df.to_dict("records"), f"Uploaded {len(dfs)} file{plural}"
@@ -1328,7 +1374,7 @@ def create_app(args, *, log_to_file=True):
         """
         Return the options for the kmer dropdown in the raw mode
         """
-        return ([i for i in kmers[(dataset, selected_gene)].columns if i != "length"],)
+        return ([i for i in get_kmers(dataset, selected_gene).columns if i != "length"],)
 
     @app.callback(
         Output("kmer-composition-raw", "figure"),
@@ -1365,16 +1411,9 @@ def create_app(args, *, log_to_file=True):
         :param dataset: dataset to show the kmer composition for
         """
         if kmer_mode == "raw":
-            if len(stored_df) == 0:
-                kmer_df = kmers[(dataset, selected_gene)]
-            else:
-                stored_df = pd.DataFrame(stored_df)
-                kmer_df = pd.concat(
-                    [
-                        kmers[(dataset, selected_gene)],
-                        parse_kmers(stored_df, repeats, selected_gene, dataset),
-                    ]
-                ).fillna(0.0)
+            kmer_df = combined_kmers(stored_df, dataset, selected_gene)
+            if kmer_df.empty:
+                return plot.empty_figure(f"No sequence data available for {selected_gene}")
             return plot.kmer_plot_raw(
                 kmer_df,
                 selected_gene=selected_gene,
@@ -1419,16 +1458,9 @@ def create_app(args, *, log_to_file=True):
         :param dataset: dataset to show the kmer composition for
         """
         if kmer_mode == "collapsed":
-            if len(stored_df) == 0:
-                kmer_df = kmers[(dataset, selected_gene)]
-            else:
-                stored_df = pd.DataFrame(stored_df)
-                kmer_df = pd.concat(
-                    [
-                        kmers[(dataset, selected_gene)],
-                        parse_kmers(stored_df, repeats, selected_gene, dataset),
-                    ]
-                ).fillna(0.0)
+            kmer_df = combined_kmers(stored_df, dataset, selected_gene)
+            if kmer_df.empty:
+                return plot.empty_figure(f"No sequence data available for {selected_gene}")
             return plot.kmer_plot_collapsed(
                 kmer_df,
                 selected_gene=selected_gene,
@@ -1479,16 +1511,9 @@ def create_app(args, *, log_to_file=True):
         :param superpopulation_filter: superpopulation to filter the data by
         """
         if kmer_mode == "sequence":
-            if len(stored_df) == 0:
-                kmer_df = kmers[(dataset, selected_gene)]
-            else:
-                stored_df = pd.DataFrame(stored_df)
-                kmer_df = pd.concat(
-                    [
-                        kmers[(dataset, selected_gene)],
-                        parse_kmers(stored_df, repeats, selected_gene, dataset),
-                    ]
-                ).fillna(0.0)
+            kmer_df = combined_kmers(stored_df, dataset, selected_gene)
+            if kmer_df.empty:
+                return plot.empty_figure(f"No sequence data available for {selected_gene}")
             filtered_df = df[(df["gene"] == selected_gene) & (df["dataset"] == dataset)]
             if superpopulation_filter:
                 filtered_df = filtered_df[
@@ -1522,7 +1547,9 @@ def create_app(args, *, log_to_file=True):
     )
     def update_slider_range(selected_gene, dataset):
         """Update the slider based on the minimal and maximal length of the repeat"""
-        data = kmers[(dataset, selected_gene)].dropna(subset=["length"])
+        data = get_kmers(dataset, selected_gene).dropna(subset=["length"])
+        if data.empty:
+            return 0, 1
         return floor(data["length"].min()), ceil(data["length"].max())
 
     @app.callback(
@@ -1557,7 +1584,7 @@ def create_app(args, *, log_to_file=True):
                     ),
                 )
         else:
-            dash.no_update
+            return dash.no_update
 
     @app.callback(
         [
@@ -1672,6 +1699,8 @@ def create_app(args, *, log_to_file=True):
         prevent_initial_call=True,
     )
     def download_zip(n_clicks, dataset):
+        if dataset not in valid_datasets:
+            return dash.no_update
         caller, build = dataset.split("_")
         file = f"pathSTR_{caller}_{build}_good_samples.zip"
         if not os.path.exists(file):
@@ -1827,6 +1856,9 @@ def create_wsgi_app():
 
 def main():
     args = get_args()
+    if args.debug and args.host not in LOOPBACK_HOSTS:
+        # the Werkzeug debugger allows code execution; never expose it on the network
+        sys.exit(f"Refusing to run with --debug on non-loopback host {args.host}")
     app = create_app(args)
     if app is not None:
         app.run(host=args.host, port=args.port, debug=args.debug)

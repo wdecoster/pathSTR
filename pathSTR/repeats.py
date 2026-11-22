@@ -107,8 +107,13 @@ class Repeats(object):
         import requests
 
         url = "https://api.github.com/repos/dashnowlab/STRchive/releases/latest"
-        response = requests.get(url)
-        return response.json()["tag_name"]
+        try:
+            response = requests.get(url, timeout=10)
+            response.raise_for_status()
+            return response.json()["tag_name"]
+        except (requests.RequestException, ValueError, KeyError) as e:
+            logging.warning(f"Could not determine the STRchive version: {e}")
+            return "unknown"
 
     def query(self, dataset, gene, column):
         """

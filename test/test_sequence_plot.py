@@ -40,6 +40,14 @@ class SequencePlotTests(unittest.TestCase):
                 if direction == "right-to-left":
                     self.assertEqual(fig.layout.xaxis.autorange, "reversed")
 
+    def test_non_acgt_bases_and_hex_colormap(self):
+        repeats = self.repeats.assign(sequence=["AN", "ATATnT", "AT-T"])
+        fig = kmer_plot_sequence(
+            self.kmers, repeats, "test", colormap="Plotly", direction="left-to-right"
+        )
+        self.assertEqual(sum(len(trace.x) for trace in fig.data), 12)
+        self.assertIn("rgb(99, 110, 250)", [t.marker.color for t in fig.data])
+
     def test_astronaut_order_with_non_default_indices(self):
         args = SimpleNamespace(
             alphabetic=False,

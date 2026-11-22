@@ -16,16 +16,18 @@ jobs:
 
     steps:
     - uses: actions/checkout@v7
+    # install from uv.lock, the same dependency set the Containerfile ships
+    - uses: astral-sh/setup-uv@v7
     - name: install
-      run: pip3 install -r requirements.txt
+      run: uv sync --frozen --no-dev
     - name: unit tests
-      run: python -m unittest discover -s test -p 'test_*.py'
+      run: uv run --frozen python -m unittest discover -s test -p 'test_*.py'
     - name: make_db
-      run: python app.py --vcf test/genotypes_test.fofn --save_db test_database --sample_info data/pathSTR_samples.tsv --store_only
+      run: uv run --frozen python app.py --vcf test/genotypes_test.fofn --save_db test_database --sample_info data/pathSTR_samples.tsv --store_only
     - name: run and shutdown
       run: |
         set -e
-        python app.py --db test_database &
+        uv run --frozen python app.py --db test_database &
         app_pid=$!
         sleep 120
         kill $app_pid

@@ -39,10 +39,10 @@ We provide [aSTRonaut](https://github.com/wdecoster/pathSTR/blob/main/scripts/aS
 
 ### Installation aSTRonaut
 
-The script requires some python dependencies, which can be installed using pip or conda/mamba
+The script requires some python dependencies, which can be installed using [uv](https://docs.astral.sh/uv/) (from the root of the cloned repository) or conda/mamba
 
 ```bash
-pip install -r requirements.txt
+uv sync
 # or
 conda create -n astronaut pandas cyvcf2 plotly
 conda activate astronaut
@@ -96,10 +96,10 @@ We did our best to make aSTRonaut generate pretty visualizations for all scenari
 
 ### Installation
 
-This repository contains the code for the pathSTR web app. For a local installation, you will need to install the dependencies as specified in requirements.txt. You can do this by running the following command in the root directory of the repository:
+This repository contains the code for the pathSTR web app. For a local installation, install the locked dependencies from `uv.lock` with [uv](https://docs.astral.sh/uv/) in the root directory of the repository, and prefix commands with `uv run` (e.g. `uv run python app.py ...`):
 
 ```bash
-pip install -r requirements.txt
+uv sync
 ```
 
 The pathSTR-1000G.smk workflow uses snakemake to manage the pipeline. You can install snakemake using pip:
@@ -136,7 +136,7 @@ The database, stored as a directory of Parquet files, can then be constructed us
 python app.py --vcf genotypes.fofn --save_db pathSTR_database --sample_info data/pathSTR_samples.tsv --store_only
 ```
 
-The web app is then started with the following command, optionally with --debug to run dash in debug mode.
+The web app is then started with the following command, optionally with --debug to run dash in debug mode (only allowed when serving on localhost).
 
 ```bash
 python app.py --db pathSTR_database
