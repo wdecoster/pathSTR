@@ -15,7 +15,20 @@ class AppEntrypointTests(unittest.TestCase):
         args = create.call_args.args[0]
         self.assertEqual(args.db, "/mounted/database")
         self.assertFalse(args.store_only)
-        self.assertEqual(create.call_args.kwargs, {"log_to_file": False})
+        self.assertEqual(
+            create.call_args.kwargs, {"log_to_file": False, "base_path": None}
+        )
+
+    def test_wsgi_factory_passes_base_path(self):
+        with patch.dict("os.environ", {"APP_BASE_PATH": "/sub"}):
+            with patch.object(app, "create_app", return_value=Mock()) as create:
+                app.create_wsgi_app()
+        self.assertEqual(create.call_args.kwargs["base_path"], "/sub")
+
+    def test_normalize_base_path(self):
+        for raw, expected in [(None, "/"), ("", "/"), ("/", "/"), ("sub", "/sub/"),
+                              ("/sub", "/sub/"), ("/sub/", "/sub/"), ("/a/b", "/a/b/")]:
+            self.assertEqual(app.normalize_base_path(raw), expected)
 
     def test_wsgi_factory_default_database(self):
         with patch.dict("os.environ", {}, clear=True):

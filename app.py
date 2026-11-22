@@ -38,7 +38,13 @@ UPLOAD_COLUMNS = [
 ]
 
 
-def create_app(args, *, log_to_file=True):
+def normalize_base_path(path):
+    """'/sub', 'sub/' or '/sub/' -> '/sub/'; empty or None -> '/'"""
+    path = (path or "").strip("/")
+    return f"/{path}/" if path else "/"
+
+
+def create_app(args, *, log_to_file=True, base_path=None):
     # Hardcoded exclusion: genes that cause issues with kmer file size/memory
     EXCLUDED_GENES_KMER = {"MUC1", "PLIN4"}
     
@@ -187,7 +193,12 @@ def create_app(args, *, log_to_file=True):
 
     num_samples = len(df["sample"].unique())
     # Create Dash app
-    app = Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
+    app = Dash(
+        __name__,
+        external_stylesheets=[dbc.themes.BOOTSTRAP],
+        # serve under a sub path (e.g. behind a reverse proxy); routes and assets follow it
+        url_base_pathname=normalize_base_path(base_path),
+    )
     # Reject oversized callback requests (uploads and the stored-df round trip) before they
     # reach a callback; dcc.Upload's max_size is only enforced in the browser.
     app.server.config["MAX_CONTENT_LENGTH"] = MAX_REQUEST_BYTES
@@ -1882,7 +1893,11 @@ def get_args(argv=None):
 
 def create_wsgi_app():
     database = os.environ.get("PATHSTR_DB", "/data/pathSTR_database")
-    app = create_app(get_args(["--db", database]), log_to_file=False)
+    app = create_app(
+        get_args(["--db", database]),
+        log_to_file=False,
+        base_path=os.environ.get("APP_BASE_PATH"),
+    )
     return app.server
 
 
