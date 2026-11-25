@@ -36,7 +36,14 @@ docker start -a "$builder" >/dev/null 2>&1 \
   || { docker logs "$builder" | tail -50; echo "building the test database failed" >&2; exit 1; }
 docker rm -f "$builder" >/dev/null
 
-run_app() { docker run -d --name "$name" -v "$volume:/data:ro" "$@" "$ref" >/dev/null; }
+# test with similar environment as app servers run it
+run_app() {
+  docker run -d --name "$name" -v "$volume:/data:ro" \
+    --read-only --tmpfs /tmp:rw,noexec,nosuid,size=256m \
+    --cap-drop ALL --security-opt no-new-privileges \
+    -e GUNICORN_CMD_ARGS=--no-control-socket \
+    "$@" "$ref" >/dev/null
+}
 
 # grep the page title too, so an error page served with a 200 does not pass
 wait_for() {
